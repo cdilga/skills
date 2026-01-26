@@ -1,0 +1,17 @@
+{
+  "name": "cdilga-skills",
+  "version": "1.0.0",
+  "description": "Personal skills collection",
+  "owner": {
+    "name": "Chris Dilger",
+    "email": "chris@dilger.me"
+  },
+  "plugins": [
+    {
+      "name": "all-skills",
+      "description": "All skills in this marketplace",
+      "source": "./",
+      "strict": true
+    }
+  ]
+}
