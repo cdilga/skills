@@ -1,0 +1,3 @@
+.env
+generated/
+generation_status.json
