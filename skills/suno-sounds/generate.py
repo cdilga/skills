@@ -87,8 +87,21 @@ def download_file(url: str, dest: Path):
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
+def _read_env_key(env_path: Path) -> str | None:
+    """Try to read SUNO_API_KEY from a .env file."""
+    if not env_path.exists():
+        return None
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if line.startswith("SUNO_API_KEY=") and not line.startswith("#"):
+            key = line.split("=", 1)[1].strip().strip("'\"")
+            if key:
+                return key
+    return None
+
+
 def load_api_key(explicit_key: str | None) -> str:
-    """Resolve API key: explicit arg > env var > .env file."""
+    """Resolve API key: explicit arg > env var > .env (cwd) > .env (script dir)."""
     if explicit_key:
         return explicit_key
 
@@ -96,14 +109,16 @@ def load_api_key(explicit_key: str | None) -> str:
     if key:
         return key
 
-    env_path = Path(".env")
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            line = line.strip()
-            if line.startswith("SUNO_API_KEY=") and not line.startswith("#"):
-                key = line.split("=", 1)[1].strip().strip("'\"")
-                if key:
-                    return key
+    # Check .env in current working directory
+    key = _read_env_key(Path(".env"))
+    if key:
+        return key
+
+    # Check .env next to this script (for when invoked from another directory)
+    script_dir = Path(__file__).resolve().parent
+    key = _read_env_key(script_dir / ".env")
+    if key:
+        return key
 
     print("Error: No API key found.", file=sys.stderr)
     print("  Set SUNO_API_KEY in .env, environment, or pass --api-key", file=sys.stderr)

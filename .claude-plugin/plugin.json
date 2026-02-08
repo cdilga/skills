@@ -1,0 +1,6 @@
+{
+  "name": "cdilga-skills",
+  "version": "1.1.0",
+  "description": "Personal skills collection",
+  "skills": "./skills/"
+}

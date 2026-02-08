@@ -1,7 +1,7 @@
 {
   "name": "cdilga-skills",
   "version": "1.1.0",
-  "description": "Personal skills collection",
+  "description": "Personal skills collection including Suno sound generation and video tools",
   "owner": {
     "name": "Chris Dilger",
     "email": "chris@dilger.me"
@@ -11,7 +11,11 @@
       "name": "all-skills",
       "description": "All skills in this marketplace",
       "source": "./",
-      "strict": true
+      "strict": true,
+      "skills": [
+        "./skills/suno-sounds",
+        "./skills/looping-video"
+      ]
     }
   ]
 }
