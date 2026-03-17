@@ -3,31 +3,27 @@
 # Usage:
 #   Install:  curl -fsSL https://raw.githubusercontent.com/cdilga/skills/main/install.sh | bash
 #   Update:   curl -fsSL https://raw.githubusercontent.com/cdilga/skills/main/install.sh | bash -s -- --update
-#   Or just:  ~/.local/share/cdilga-skills/install.sh --update
+#   Or just:  git -C ~/.local/share/cdilga-skills pull
 
 set -euo pipefail
 
 REPO_URL="https://github.com/cdilga/skills.git"
 REPO_GITHUB="cdilga/skills"
 INSTALL_DIR="$HOME/.local/share/cdilga-skills"
-MARKETPLACE_ID="cdilga-skills"
-PLUGIN_NAME="all-skills"
+AGENTS_SKILLS="$HOME/.agents/skills"
 
-# ── colours ──────────────────────────────────────────────────────────────────
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
+# ── colours ───────────────────────────────────────────────────────────────────
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 info()    { echo -e "${CYAN}▸${NC} $*"; }
 success() { echo -e "${GREEN}✓${NC} $*"; }
 warn()    { echo -e "${YELLOW}⚠${NC}  $*"; }
 header()  { echo -e "\n${BOLD}$*${NC}"; }
 
-UPDATE_MODE=false
-[[ "${1:-}" == "--update" ]] && UPDATE_MODE=true
-
 header "cdilga/skills installer"
 
-# ── Step 1: Clone or update the canonical repo ───────────────────────────────
+# ── 1. Clone or update ────────────────────────────────────────────────────────
 if [[ -d "$INSTALL_DIR/.git" ]]; then
-    info "Pulling latest from $REPO_GITHUB..."
+    info "Pulling latest..."
     git -C "$INSTALL_DIR" pull --ff-only --quiet
     success "Updated to $(git -C "$INSTALL_DIR" log --oneline -1)"
 else
@@ -36,170 +32,163 @@ else
     success "Cloned"
 fi
 
-# Discover available skills (bash 3 compatible — no mapfile)
+# Discover skills (bash 3 compatible)
 SKILLS_DIR="$INSTALL_DIR/skills"
 AVAILABLE_SKILLS=()
 while IFS= read -r skill_md; do
     AVAILABLE_SKILLS+=("$(basename "$(dirname "$skill_md")")")
 done < <(find "$SKILLS_DIR" -maxdepth 2 -name "SKILL.md" | sort)
 
-header "Available skills (${#AVAILABLE_SKILLS[@]})"
+header "Skills (${#AVAILABLE_SKILLS[@]})"
 for s in "${AVAILABLE_SKILLS[@]}"; do
-    desc=$(awk '/^description:/{sub(/^description: /,""); print; exit}' "$SKILLS_DIR/$s/SKILL.md" 2>/dev/null || echo "")
-    echo -e "  ${BOLD}$s${NC}  ${desc}"
+    desc=$(awk '/^description:/{sub(/^description: /,""); print; exit}' "$SKILLS_DIR/$s/SKILL.md" 2>/dev/null || true)
+    echo -e "  ${BOLD}$s${NC}  $desc"
 done
 
-# ── Step 2: Claude Code ───────────────────────────────────────────────────────
+# ── 2. Install into ~/.agents/skills (shared hub for all agents) ──────────────
+header "Installing to shared hub (~/.agents/skills)"
+mkdir -p "$AGENTS_SKILLS"
+
+for skill in "${AVAILABLE_SKILLS[@]}"; do
+    target="$AGENTS_SKILLS/$skill"
+    source="$SKILLS_DIR/$skill"
+    if [[ -L "$target" ]]; then
+        ln -sfn "$source" "$target"
+        info "Updated symlink: ~/.agents/skills/$skill"
+    elif [[ -d "$target" ]]; then
+        warn "~/.agents/skills/$skill exists and is not a symlink — skipping (remove manually to replace)"
+    else
+        ln -s "$source" "$target"
+        success "~/.agents/skills/$skill"
+    fi
+done
+
+# ── 3. Per-agent symlinks (each agent reads from its own dir → ~/.agents/skills) ──
+# Relative symlink helper: ln -s <relative-path> <link>
+# All agent skill dirs are one level deep (e.g. ~/.cursor/skills/) so relative = ../../.agents/skills/<skill>
+# Windsurf is two levels deep (~/.codeium/windsurf/skills/) so relative = ../../../.agents/skills/<skill>
+
+symlink_for_agent() {
+    local agent_skills_dir="$1"   # e.g. ~/.cursor/skills
+    local rel_prefix="$2"          # e.g. ../../.agents/skills
+    local label="$3"
+
+    if [[ ! -d "$(dirname "$agent_skills_dir")" ]]; then
+        return  # agent not installed
+    fi
+
+    mkdir -p "$agent_skills_dir"
+    local added=0
+    for skill in "${AVAILABLE_SKILLS[@]}"; do
+        local link="$agent_skills_dir/$skill"
+        if [[ -L "$link" ]]; then
+            ln -sfn "$rel_prefix/$skill" "$link"
+        elif [[ ! -e "$link" ]]; then
+            ln -s "$rel_prefix/$skill" "$link"
+            (( added++ )) || true
+        fi
+    done
+    success "$label (${#AVAILABLE_SKILLS[@]} skills)"
+}
+
+header "Registering with agents"
+
+# Claude Code  (~/.claude/)
+symlink_for_agent "$HOME/.claude/skills"           "../../.agents/skills"              "Claude Code (~/.claude/skills)"
+
+# Cursor  (~/.cursor/)
+symlink_for_agent "$HOME/.cursor/skills"           "../../.agents/skills"              "Cursor (~/.cursor/skills)"
+
+# Codex  (~/.codex/)
+symlink_for_agent "$HOME/.codex/skills"            "../../.agents/skills"              "Codex (~/.codex/skills)"
+
+# Gemini CLI  (~/.gemini/)
+symlink_for_agent "$HOME/.gemini/skills"           "../../.agents/skills"              "Gemini CLI (~/.gemini/skills)"
+
+# Windsurf  (~/.codeium/windsurf/)
+symlink_for_agent "$HOME/.codeium/windsurf/skills" "../../../.agents/skills"           "Windsurf (~/.codeium/windsurf/skills)"
+
+# Kimi  (~/.kimi/) — if it exists
+symlink_for_agent "$HOME/.kimi/skills"             "../../.agents/skills"              "Kimi (~/.kimi/skills)"
+
+# ── 4. Claude Code plugin system (marketplace registration) ───────────────────
 CLAUDE_PLUGINS="$HOME/.claude/plugins"
 if [[ -d "$CLAUDE_PLUGINS" ]]; then
-    header "Setting up for Claude Code"
+    header "Claude Code plugin system"
+    MARKETPLACE_ID="cdilga-skills"
+    PLUGIN_NAME="all-skills"
 
-    # 2a. Register marketplace (known_marketplaces.json)
+    # known_marketplaces.json
     KM="$CLAUDE_PLUGINS/known_marketplaces.json"
     if [[ -f "$KM" ]]; then
-        # Inject entry if not already present
         python3 - "$KM" "$MARKETPLACE_ID" "$REPO_GITHUB" <<'PYEOF'
-import json, sys
+import json, sys, datetime, os
 path, mid, repo = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(path) as f:
-    d = json.load(f)
+with open(path) as f: d = json.load(f)
 if mid not in d:
-    import datetime
-    d[mid] = {
-        "source": {"source": "github", "repo": repo},
-        "installLocation": f"{__import__('os').path.expanduser('~')}/.claude/plugins/marketplaces/{mid}",
-        "lastUpdated": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    }
-    with open(path, 'w') as f:
-        json.dump(d, f, indent=4)
-    print("registered")
-else:
-    print("already registered")
+    d[mid] = {"source": {"source": "github", "repo": repo},
+              "installLocation": f"{os.path.expanduser('~')}/.claude/plugins/marketplaces/{mid}",
+              "lastUpdated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")}
+    with open(path, 'w') as f: json.dump(d, f, indent=4)
 PYEOF
-        success "Marketplace registered in known_marketplaces.json"
     fi
 
-    # 2b. Marketplace dir — symlink to our canonical clone (so git pull = instant update)
+    # Marketplace dir → symlink to live clone
     MP_DIR="$CLAUDE_PLUGINS/marketplaces/$MARKETPLACE_ID"
-    if [[ -L "$MP_DIR" ]]; then
-        info "Marketplace symlink already points to: $(readlink "$MP_DIR")"
-    elif [[ -d "$MP_DIR" && ! -L "$MP_DIR" ]]; then
-        warn "Replacing existing marketplace clone with symlink (backup at ${MP_DIR}.bak)"
+    if [[ -d "$MP_DIR" && ! -L "$MP_DIR" ]]; then
         mv "$MP_DIR" "${MP_DIR}.bak"
-        ln -s "$INSTALL_DIR" "$MP_DIR"
-        success "Symlinked marketplaces/$MARKETPLACE_ID → $INSTALL_DIR"
-    else
-        ln -s "$INSTALL_DIR" "$MP_DIR"
-        success "Symlinked marketplaces/$MARKETPLACE_ID → $INSTALL_DIR"
     fi
+    [[ -L "$MP_DIR" ]] && ln -sfn "$INSTALL_DIR" "$MP_DIR" || ln -s "$INSTALL_DIR" "$MP_DIR"
 
-    # 2c. Cache entry — symlink so updates are zero-cost
-    # Claude Code reads skills from cache/<marketplace>/<plugin>/<version>/
-    # We create a "current" version that is a symlink to the live clone.
+    # Cache → symlink so git pull = instant update
     VERSION=$(python3 -c "
 import json
-try:
-    d = json.load(open('$INSTALL_DIR/.claude-plugin/marketplace.json'))
-    print(d.get('version','current'))
-except:
-    print('current')
+try: print(json.load(open('$INSTALL_DIR/.claude-plugin/marketplace.json')).get('version','current'))
+except: print('current')
 ")
     CACHE_DIR="$CLAUDE_PLUGINS/cache/$MARKETPLACE_ID/$PLUGIN_NAME/$VERSION"
     mkdir -p "$(dirname "$CACHE_DIR")"
-    if [[ -L "$CACHE_DIR" ]]; then
-        # Update symlink target if needed
-        ln -sfn "$INSTALL_DIR" "$CACHE_DIR"
-        info "Cache symlink updated"
-    elif [[ -d "$CACHE_DIR" && ! -L "$CACHE_DIR" ]]; then
-        warn "Replacing cache snapshot with symlink (backup at ${CACHE_DIR}.bak)"
-        mv "$CACHE_DIR" "${CACHE_DIR}.bak"
-        ln -s "$INSTALL_DIR" "$CACHE_DIR"
-        success "Cache symlinked → $INSTALL_DIR"
-    else
-        ln -s "$INSTALL_DIR" "$CACHE_DIR"
-        success "Cache entry created: cache/$MARKETPLACE_ID/$PLUGIN_NAME/$VERSION → $INSTALL_DIR"
-    fi
+    if [[ -d "$CACHE_DIR" && ! -L "$CACHE_DIR" ]]; then mv "$CACHE_DIR" "${CACHE_DIR}.bak"; fi
+    [[ -L "$CACHE_DIR" ]] && ln -sfn "$INSTALL_DIR" "$CACHE_DIR" || ln -s "$INSTALL_DIR" "$CACHE_DIR"
 
-    # 2d. installed_plugins.json — register the plugin
+    # installed_plugins.json
     IP="$CLAUDE_PLUGINS/installed_plugins.json"
     if [[ -f "$IP" ]]; then
         python3 - "$IP" "$PLUGIN_NAME" "$MARKETPLACE_ID" "$CACHE_DIR" "$VERSION" <<'PYEOF'
-import json, sys, datetime, os
+import json, sys, datetime
 path, plugin, marketplace, install_path, version = sys.argv[1:6]
 key = f"{plugin}@{marketplace}"
-with open(path) as f:
-    d = json.load(f)
+with open(path) as f: d = json.load(f)
 d.setdefault("plugins", {})
-now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
-if key not in d["plugins"]:
-    d["plugins"][key] = [{"scope": "user", "installPath": install_path,
-                           "version": version, "installedAt": now, "lastUpdated": now}]
+now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+entry = {"scope": "user", "installPath": install_path, "version": version, "installedAt": now, "lastUpdated": now}
+if key not in d["plugins"]: d["plugins"][key] = [entry]
 else:
-    # Update version/path on existing entry
-    for entry in d["plugins"][key]:
-        if entry.get("scope") == "user":
-            entry["installPath"] = install_path
-            entry["version"] = version
-            entry["lastUpdated"] = now
-with open(path, 'w') as f:
-    json.dump(d, f, indent=4)
-print("ok")
+    for e in d["plugins"][key]:
+        if e.get("scope") == "user": e.update({"installPath": install_path, "version": version, "lastUpdated": now})
+with open(path, 'w') as f: json.dump(d, f, indent=4)
 PYEOF
-        success "Registered in installed_plugins.json"
     fi
 
-    # 2e. settings.json — enable all skills
+    # settings.json enabledPlugins
     SETTINGS="$HOME/.claude/settings.json"
     if [[ -f "$SETTINGS" ]]; then
         python3 - "$SETTINGS" "$PLUGIN_NAME" "$MARKETPLACE_ID" <<'PYEOF'
 import json, sys
-path = sys.argv[1]
-plugin_name = sys.argv[2]
-marketplace = sys.argv[3]
-skills = sys.argv[4:]
-with open(path) as f:
-    d = json.load(f)
-d.setdefault("enabledPlugins", {})
-key = f"{plugin_name}@{marketplace}"
-d["enabledPlugins"][key] = True
-with open(path, 'w') as f:
-    json.dump(d, f, indent=4)
-print("ok")
+path, plugin_name, marketplace = sys.argv[1:4]
+with open(path) as f: d = json.load(f)
+d.setdefault("enabledPlugins", {})[f"{plugin_name}@{marketplace}"] = True
+with open(path, 'w') as f: json.dump(d, f, indent=4)
 PYEOF
-        success "Enabled in Claude Code settings"
     fi
-
-    success "Claude Code: done. Skills are live — no restart needed."
-    echo -e "   ${CYAN}Update anytime:${NC}  git -C $INSTALL_DIR pull"
-    echo -e "   ${CYAN}Or re-run:${NC}       curl -fsSL https://raw.githubusercontent.com/$REPO_GITHUB/main/install.sh | bash -s -- --update"
-else
-    warn "Claude Code not found (no ~/.claude/plugins). Skipping."
-fi
-
-# ── Step 3: OpenCode ──────────────────────────────────────────────────────────
-# OpenCode reads agent instructions from AGENTS.md / .opencode/instructions
-OPENCODE_DB="$HOME/.local/share/opencode"
-if [[ -d "$OPENCODE_DB" ]]; then
-    header "OpenCode detected"
-    info "OpenCode doesn't have a formal skill system — skills work via AGENTS.md."
-    info "Add this to your workspace AGENTS.md to make skills discoverable:"
-    echo -e "   ${CYAN}Skills available at: $INSTALL_DIR/skills${NC}"
-fi
-
-# ── Step 4: Cursor ────────────────────────────────────────────────────────────
-if [[ -d "$HOME/.cursor" || -d "$HOME/Library/Application Support/Cursor" ]]; then
-    header "Cursor detected"
-    info "Cursor uses .cursor/rules — no native skill system."
-    info "Skills are available at: $INSTALL_DIR/skills"
+    success "Claude Code plugin system registered"
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
-header "Done"
-echo -e "${GREEN}${BOLD}${#AVAILABLE_SKILLS[@]} skills installed from cdilga/skills${NC}"
+header "Done — ${#AVAILABLE_SKILLS[@]} skills from cdilga/skills"
 echo ""
-echo -e "${BOLD}To update:${NC}"
-echo -e "  git -C $INSTALL_DIR pull"
-echo -e "  # That's it — symlinks mean the update is instant."
+echo -e "${BOLD}To update:${NC}  git -C $INSTALL_DIR pull"
+echo -e "            (symlinks mean the update is instant across all agents)"
 echo ""
-echo -e "${BOLD}Or one-liner update:${NC}"
-echo -e "  curl -fsSL https://raw.githubusercontent.com/$REPO_GITHUB/main/install.sh | bash -s -- --update"
+echo -e "${BOLD}One-liner update:${NC}"
+echo -e "  curl -fsSL https://raw.githubusercontent.com/$REPO_GITHUB/main/install.sh | bash"
