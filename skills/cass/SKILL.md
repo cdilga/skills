@@ -66,7 +66,7 @@ triggers:
 
 # cass — Coding Agent Session Search
 
-> **Requires**: `cass` CLI. Not installed or first run? → read `setup.md` (index build, model install, diagnostics). Read it once, never again.
+> **Requires `cass`** — first time: read `setup.md`
 
 Search across **all your AI coding agent histories** (Claude Code, Cursor, Cline, OpenCode, ChatGPT, and 15+ others) using a single tool. cass indexes everything into a local SQLite DB and lets agents query it with structured JSON output.
 
