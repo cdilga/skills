@@ -73,10 +73,6 @@ symlink_for_agent() {
     local rel_prefix="$2"          # e.g. ../../.agents/skills
     local label="$3"
 
-    if [[ ! -d "$(dirname "$agent_skills_dir")" ]]; then
-        return  # agent not installed
-    fi
-
     mkdir -p "$agent_skills_dir"
     local added=0
     for skill in "${AVAILABLE_SKILLS[@]}"; do
@@ -108,8 +104,14 @@ symlink_for_agent "$HOME/.gemini/skills"           "../../.agents/skills"       
 # Windsurf  (~/.codeium/windsurf/)
 symlink_for_agent "$HOME/.codeium/windsurf/skills" "../../../.agents/skills"           "Windsurf (~/.codeium/windsurf/skills)"
 
-# Kimi  (~/.kimi/) — if it exists
+# Kimi  (~/.kimi/)
 symlink_for_agent "$HOME/.kimi/skills"             "../../.agents/skills"              "Kimi (~/.kimi/skills)"
+
+# OpenCode  (~/.config/opencode/skills/)  — also reads ~/.agents/skills natively, but explicit is cleaner
+symlink_for_agent "$HOME/.config/opencode/skills"  "../../../.agents/skills"           "OpenCode (~/.config/opencode/skills)"
+
+# GitHub Copilot  (~/.copilot/skills/)
+symlink_for_agent "$HOME/.copilot/skills"          "../../.agents/skills"              "Copilot (~/.copilot/skills)"
 
 # ── 4. Claude Code plugin system (marketplace registration) ───────────────────
 CLAUDE_PLUGINS="$HOME/.claude/plugins"
