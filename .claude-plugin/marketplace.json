@@ -15,7 +15,8 @@
       "strict": true,
       "skills": [
         "./skills/suno-sounds",
-        "./skills/looping-video"
+        "./skills/looping-video",
+        "./skills/cass"
       ]
     },
     {
@@ -31,6 +32,13 @@
       "source": "./",
       "strict": true,
       "skills": ["./skills/looping-video"]
+    },
+    {
+      "name": "cass",
+      "description": "Search all past AI coding agent histories using cass — find patterns, bugs, and solutions across all your conversations",
+      "source": "./",
+      "strict": true,
+      "skills": ["./skills/cass"]
     }
   ]
 }
