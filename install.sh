@@ -33,25 +33,27 @@ else
 fi
 
 # Discover skills (bash 3 compatible)
+# Skills live at skills/<name>/SKILL.md or grouped one level deeper, e.g. skills/reviewing/<name>/SKILL.md.
+# The symlink name is always the directory containing SKILL.md.
 SKILLS_DIR="$INSTALL_DIR/skills"
-AVAILABLE_SKILLS=()
+AVAILABLE_SKILL_DIRS=()
 while IFS= read -r skill_md; do
-    AVAILABLE_SKILLS+=("$(basename "$(dirname "$skill_md")")")
-done < <(find "$SKILLS_DIR" -maxdepth 2 -name "SKILL.md" | sort)
+    AVAILABLE_SKILL_DIRS+=("$(dirname "$skill_md")")
+done < <(find "$SKILLS_DIR" -maxdepth 3 -name "SKILL.md" | sort)
 
-header "Skills (${#AVAILABLE_SKILLS[@]})"
-for s in "${AVAILABLE_SKILLS[@]}"; do
-    desc=$(awk '/^description:/{sub(/^description: /,""); print; exit}' "$SKILLS_DIR/$s/SKILL.md" 2>/dev/null || true)
-    echo -e "  ${BOLD}$s${NC}  $desc"
+header "Skills (${#AVAILABLE_SKILL_DIRS[@]})"
+for d in "${AVAILABLE_SKILL_DIRS[@]}"; do
+    desc=$(awk '/^description:/{sub(/^description: /,""); print; exit}' "$d/SKILL.md" 2>/dev/null || true)
+    echo -e "  ${BOLD}$(basename "$d")${NC}  $desc"
 done
 
 # ── 2. Install into ~/.agents/skills (shared hub for all agents) ──────────────
 header "Installing to shared hub (~/.agents/skills)"
 mkdir -p "$AGENTS_SKILLS"
 
-for skill in "${AVAILABLE_SKILLS[@]}"; do
+for source in "${AVAILABLE_SKILL_DIRS[@]}"; do
+    skill="$(basename "$source")"
     target="$AGENTS_SKILLS/$skill"
-    source="$SKILLS_DIR/$skill"
     if [[ -L "$target" ]]; then
         ln -sfn "$source" "$target"
         info "Updated symlink: ~/.agents/skills/$skill"
@@ -75,7 +77,9 @@ symlink_for_agent() {
 
     mkdir -p "$agent_skills_dir"
     local added=0
-    for skill in "${AVAILABLE_SKILLS[@]}"; do
+    for d in "${AVAILABLE_SKILL_DIRS[@]}"; do
+        local skill
+        skill="$(basename "$d")"
         local link="$agent_skills_dir/$skill"
         if [[ -L "$link" ]]; then
             ln -sfn "$rel_prefix/$skill" "$link"
@@ -84,7 +88,7 @@ symlink_for_agent() {
             (( added++ )) || true
         fi
     done
-    success "$label (${#AVAILABLE_SKILLS[@]} skills)"
+    success "$label (${#AVAILABLE_SKILL_DIRS[@]} skills)"
 }
 
 header "Registering with agents"
@@ -187,7 +191,7 @@ PYEOF
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
-header "Done — ${#AVAILABLE_SKILLS[@]} skills from cdilga/skills"
+header "Done — ${#AVAILABLE_SKILL_DIRS[@]} skills from cdilga/skills"
 echo ""
 echo -e "${BOLD}To update:${NC}  git -C $INSTALL_DIR pull"
 echo -e "            (symlinks mean the update is instant across all agents)"

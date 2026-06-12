@@ -42,6 +42,9 @@ Or add via **Settings → Plugins** and search for `cdilga/skills`.
 
 ## Skills
 
+### reviewing (suite)
+Five skills for running deep, multi-round, multi-model PR reviews where you stay the reviewer of record — `review-kickoff` (paste a PR link, get a findings ledger + ranked recommendations), `review-deeper` (loop for more findings until dry, with optional steering), `review-walkthrough` (step through findings, then post one batched review only after explicit approval), `review-onboard` (mine your gh review history into persistent per-repo notes), and `review-cloud` (run propose-only reviews on GitHub's hosted Copilot agents and harvest them into the same ledger). Consultant models (Gemini/Codex) only ever propose fixes — nothing edits code, nothing posts without you. See [`skills/reviewing/README.md`](skills/reviewing/README.md) for the working guide and quickstarts.
+
 ### cass
 Search all past AI coding agent histories (Claude Code, Cursor, Codex, OpenCode, etc.) using the [`cass`](https://github.com/Dicklesworthstone/coding_agent_session_search) CLI. Find how you solved something before, mine patterns, or look up historical context across all your conversations.
 
