@@ -95,8 +95,14 @@ Not on the critical path — run it after a kickoff round when a PR warrants mor
 model's eyes; skip it otherwise.
 
 - **A panel of *different* models**, not subagents of one. Defaults: Gemini, GPT-5.4,
-  Opus (`claude-opus-4-8`) — **overridable** at invocation (swap, drop, add, reassign
+  Opus — **overridable** at invocation (swap, drop, add, reassign
   lenses). Unavailable models are reported and skipped, never silently dropped.
+- **Generic in distribution, detailed in-repo.** The *distributed* squint skills name
+  only model *families* and resolve to the **latest high-effort model** via the
+  CLI/harness — never a pinned version — so the suite rides releases. All the specifics
+  (exact model ids, per-project rosters, effort settings, lens→model assignments) live in
+  the **in-repo `<team>-ctx`** that `squint-onboard` writes; `squint-panel` reads that
+  roster when present and falls back to the generic latest-family defaults otherwise.
 - **Each gets a distinct lens** (drawn from §4's rotation) so the panel adds diversity
   rather than echoing one another or the orchestrator.
 - **Tool-agnostic launch:** pin a subagent to each model if the harness allows; else

@@ -313,7 +313,13 @@ resolution, not by more name segments.**
 ## III.B — `<team>-ctx` and `<team>-ctx-<project>` context skills
 
 - **`<team>-ctx`** — team-wide, lives-once facts: shared review doctrine, severity
-  taxonomy, the team's reviewer-voice patterns, cross-repo conventions.
+  taxonomy, the team's reviewer-voice patterns, cross-repo conventions. **This is also
+  where model specifics live.** The distributed squint skills stay generic (latest
+  model *family* at high effort, never a pinned version); if a team wants determinism or
+  a tuned panel, record a detailed roster HERE — exact model ids, per-project overrides,
+  reasoning-effort settings, and lens→model assignments — and `squint-panel` will use it,
+  falling back to the generic latest-family defaults when it's absent. Be detailed in
+  `<team>-ctx`; keep the suite generic.
 - **`<team>-ctx-<project>`** — per-project context distilled from Part I: architecture
   map (or a pointer to `docs/`), build/test/CI block, domain invariants, risk register,
   the project's review lenses, and a standing pre-diff checklist. It opens with **"load

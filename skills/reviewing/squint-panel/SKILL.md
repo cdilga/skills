@@ -51,7 +51,16 @@ first.
 |---|---|---|---|
 | A | Gemini (latest Pro) | `gemini` CLI | correctness, concurrency, data races, state machines |
 | B | GPT-5.4 | `codex` / OpenAI CLI | security, API contracts, input validation, auth |
-| C | Opus (`claude-opus-4-8`) | `claude` CLI | failure modes, omissions, error handling, rollback |
+| C | Opus (latest) | `claude` CLI | failure modes, omissions, error handling, rollback |
+
+**Stay current, don't pin.** Each slot defaults to the **latest, most capable model in
+its family at high reasoning effort**, resolved by the CLI/harness — *not* a fixed
+version string — so the panel rides new model releases automatically. Pin a specific
+version only when you need reproducibility; `squint-onboard` can bake a fixed (or
+entirely different) roster into a team's `<team>-ctx` when a repo wants determinism.
+**Before falling back to these generic defaults, check for an in-repo `<team>-ctx`
+roster** for this PR's repo (exact models, per-project overrides, effort, lens→model
+map) and prefer it when present.
 
 The human can **override** the roster at invocation — swap models ("use grok and
 deepseek too"), drop one, add a fourth, or reassign lenses. Honour it. Before
