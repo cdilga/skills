@@ -34,6 +34,10 @@ squint-deeper
 squint-deeper focus on the migration and rollback path
 │   each round: new lens (incl. a verification lens) + random deep inspection
 │   + fresh eyes + consult; only NEW findings; stop after 2 dry rounds
+│
+├─▶ squint-panel            # OPTIONAL deep adversarial path, when a PR warrants it
+│     a panel of different models (Gemini / GPT-5.4 / Opus, overridable), each a
+│     distinct lens → cross-examine each other's findings → survivors fold in
 ▼
 squint-walkthrough
 │   step through findings: accept / edit / drop, one at a time
@@ -74,6 +78,7 @@ copilot   # or: opencode
 | `squint-deeper` | Loop for more findings, optionally steered ("focus on X"); rotates lenses including a verification lens |
 | `squint-walkthrough` | Step through the findings, then draft + post the review. **The only skill that posts.** |
 | `squint-cloud` | Set up / run / harvest reviews on the GitHub Copilot coding agent |
+| `squint-panel` | *Optional* deep adversarial path — a panel of different models (Gemini / GPT-5.4 / Opus, overridable), distinct lenses, cross-examined |
 | `squint-onboard` | Heavy, manual, one-time deep pass — see below |
 
 ## Onboarding — one deep pass, two kinds of output
