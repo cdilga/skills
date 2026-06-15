@@ -24,7 +24,8 @@ is where you hunt hardest, but report anything serious you find.
 ## How to read the PR
 
 - The code is checked out in the working directory you were given.
-- See the diff with: `git diff origin/<base>...HEAD` (base is given to you).
+- See the diff with: `git diff <base-remote>/<base>...HEAD` (base remote and ref
+  are given to you).
 - If you were told the branch is **N commits behind base**, treat that as a red flag —
   stale branches silently regress code that moved on base. Spot-check that the diff isn't
   resurrecting deleted behaviour or dropping things that changed on base.

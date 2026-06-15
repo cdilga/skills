@@ -1,6 +1,6 @@
 ---
 name: squint-panel
-description: Optional deep adversarial review path — convene a panel of DIFFERENT models (default Gemini, GPT-5.4, Opus) as read-only, propose-only reviewers of an in-progress squint review, each with a distinct lens, then cross-examine their findings against each other and fold the survivors into the local scratch. For when a PR warrants more than one model's eyes. Never edits code, never posts. Roster is overridable.
+description: Explicitly opt-in deep adversarial review path — convene a panel of DIFFERENT model families (for example Gemini, latest OpenAI high-effort, Opus) as read-only, propose-only reviewers of an in-progress squint review, each with a distinct lens, then cross-examine their findings and fold survivors into local scratch. Expensive; use only when requested or clearly warranted. Never edits code, never posts. Roster is overridable.
 triggers:
   - squint-panel
   - run an adversarial panel on this PR
@@ -17,8 +17,9 @@ An **optional, expensive escalation** of the single second-model consult in
 `squint-kickoff` / `squint-deeper`. Where that consult asks one other model for
 test ideas, this convenes a **panel of different models**, gives each a distinct
 adversarial lens, then has them **cross-examine each other's findings** before any
-survive into the ledger. Use it when a PR is high-stakes enough to justify three
-models' eyes; skip it otherwise. The human verdict still happens in
+survive into the scratch. Use it when the human explicitly asks for
+adversarial/multi-agent review, or when a PR is high-stakes enough to justify
+asking first. Skip it otherwise. The human verdict still happens in
 `squint-walkthrough`.
 
 This is not on the critical path: `kickoff → deeper → walkthrough` works without it.
@@ -28,7 +29,8 @@ Run it after at least one `squint-kickoff` round, when you want depth.
 
 - **Every panelist is READ-ONLY on the repo and PROPOSE-ONLY.** No file edits, no
   commits, no pushes, no `gh` mutations. They return findings as text — nothing else.
-- **Only `squint-walkthrough` posts.** This skill writes only under `~/.squint/`.
+- **Only `squint-walkthrough` posts.** This skill writes only outside the repo
+  under the squint state dir.
 - **Tool-agnostic.** Use whatever your harness gives you to run a subagent on a
   specific model; if it can't pin models, invoke the model's own CLI. Never assume a
   specific provider is present — check first and degrade gracefully.
@@ -37,9 +39,9 @@ Run it after at least one `squint-kickoff` round, when you want depth.
 
 ## 0. Locate the review
 
-Find the in-progress scratch: the most recent `~/.squint/<owner>/<repo>/pr-<N>/` with
-`meta.json` `status: in-review` (or the PR the human names). You need its `worktree/`,
-its `findings.md` (existing findings the panel will both extend and stress-test), and
+Find the in-progress scratch: the most recent `<squint-state>/<owner>/<repo>/pr-<N>/` with
+`meta.json` `status: in-review` (or the PR the human names). You need its checkout,
+its `review.md` (existing findings the panel will both extend and stress-test), and
 `meta.json` (`head_sha`, `base`, `behind_base`). If none exists, run `squint-kickoff`
 first.
 
@@ -50,17 +52,17 @@ first.
 | Slot | Model | How to invoke (if no harness model-pin) | Default lens |
 |---|---|---|---|
 | A | Gemini (latest Pro) | `gemini` CLI | correctness, concurrency, data races, state machines |
-| B | GPT-5.4 | `codex` / OpenAI CLI | security, API contracts, input validation, auth |
+| B | latest OpenAI high-effort | `codex` / OpenAI CLI | security, API contracts, input validation, auth |
 | C | Opus (latest) | `claude` CLI | failure modes, omissions, error handling, rollback |
 
 **Stay current, don't pin.** Each slot defaults to the **latest, most capable model in
 its family at high reasoning effort**, resolved by the CLI/harness — *not* a fixed
 version string — so the panel rides new model releases automatically. Pin a specific
 version only when you need reproducibility; `squint-onboard` can bake a fixed (or
-entirely different) roster into a team's `<team>-ctx` when a repo wants determinism.
-**Before falling back to these generic defaults, check for an in-repo `<team>-ctx`
-roster** for this PR's repo (exact models, per-project overrides, effort, lens→model
-map) and prefer it when present.
+entirely different) roster into a project's squint shim or review docs when a repo
+wants determinism. **Before falling back to these generic defaults, check for a
+project-specific squint shim or repo review docs** for this PR's repo (exact models,
+per-project overrides, effort, lens-to-model map) and prefer it when present.
 
 The human can **override** the roster at invocation — swap models ("use grok and
 deepseek too"), drop one, add a fourth, or reassign lenses. Honour it. Before
@@ -73,7 +75,7 @@ echoing you.
 ## 2. Brief each panelist and launch (independent round)
 
 For each model in the roster, launch one reviewer. **Pin it to that model** via your
-harness if you can; otherwise invoke its CLI non-interactively with the worktree as
+harness if you can; otherwise invoke its CLI non-interactively with the checkout as
 `cwd`. Into each reviewer's context inject, in this order:
 
 1. **The shared reviewer brief** — `reviewer-brief.md` (sits next to this file). It is
@@ -82,8 +84,8 @@ harness if you can; otherwise invoke its CLI non-interactively with the worktree
 2. **Its role** — one paragraph: "You are the **<lens>** adversary. Hunt hardest in
    <lens>. Be adversarial: surface what a tired reviewer would miss. Assume the diff is
    guilty until proven innocent."
-3. **The PR context** — `worktree/` path, the diff command
-   `git diff origin/<base>...HEAD`, `head_sha`, and the `behind_base` count (flag loudly
+3. **The PR context** — checkout path, the diff command
+   `git diff <base-remote>/<base>...HEAD`, `head_sha`, and the `behind_base` count (flag loudly
    if large — a stale branch is a top source of regressions).
 
 Each reviewer returns findings **only** in the brief's format (`F<id>` / severity /
@@ -91,8 +93,8 @@ anchor `file:line @ sha` / evidence quote + why / proposed fix). Collect them pe
 
 ## 3. Cross-examination (the adversarial core)
 
-Now make the models argue. Give every panelist the **union** of all panelists' findings
-(including the existing `findings.md`) and two jobs:
+Now make the models argue. Give every panelist the **union** of all panelists'
+findings (including the existing `review.md`) and two jobs:
 
 - **Refute** — for each finding it did not author, try hard to show it is wrong,
   already handled, or not actually a problem. Default to "refuted" when the evidence is
@@ -106,9 +108,9 @@ survivor with a confidence (`panel-consensus` if multiple models converged,
 `panel-single` if only one stands by it after cross-exam). Drop the refuted ones, noting
 why in case the human wants them back.
 
-## 4. Fold survivors into the ledger
+## 4. Fold survivors into the scratch
 
-Append surviving findings to `~/.squint/<owner>/<repo>/pr-<N>/findings.md`, each tagged
+Append surviving findings to `<squint-state>/<owner>/<repo>/pr-<N>/review.md`, each tagged
 `source: panel:<model>` (or `panel:consensus`), deduped against existing findings
 (merge, don't duplicate — if the panel confirms an existing finding, raise its
 confidence rather than adding a second entry). Bump `meta.json` `rounds`. Prefer a

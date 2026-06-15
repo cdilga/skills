@@ -1,61 +1,60 @@
 ---
 name: squint-onboard
-description: "Heavy, manual, deliberately expensive onboarding for a repo's PR-review experience. ONE shared deep pass — mining source history, work history, design docs, prior agent/session history, architecture, PRs/issues, and the repo's review culture (gh), with subagents and a structured failure-hunting process — feeds TWO kinds of output from the same paid-for research. (a) REPO-READINESS: author/improve a lean root AGENTS.md and a decomposed docs/ set, plus the cross-tool .agents/skills/ scaffold both Copilot CLI and OpenCode read. (b) REVIEW-TAILORING: generate thin <team>-squint-* shims and <team>-ctx* context skills so the generic squint review loop runs richer and cheaper. Read-only by default; propose, never impose. Bias strongly toward producing BOTH outputs — the deep pass is already paid for. Re-run by hand when a repo drifts."
+description: "Manual onboarding for a repo's PR-review experience. Mine source history, design docs, prior agent/session history, architecture, PRs/issues, and review culture, then propose lightweight repo artifacts: lean AGENTS.md/docs, project-scoped <project>-squint-* shims, and GitHub-specific code-review/cloud-agent files only when requested. Read-only by default; propose before writing; keep team rollout low-friction. Re-run by hand when a repo drifts."
 triggers:
   - squint-onboard
   - onboard this repo for review
   - set up review context for this repo
   - author or improve this repo's AGENTS.md
   - make this repo agent-ready
-  - generate team review skills for this repo
+  - generate project review skills for this repo
   - deeply study this codebase before reviewing
   - first time reviewing in this repo
 ---
 
-# squint-onboard — one deep pass, two kinds of output
+# squint-onboard — one study, lightweight repo artifacts
 
 This is the heavyweight, manual member of the `squint` suite. You run it by hand
 when *you* judge a repo is worth a deep, token-expensive study — and you re-run it
 by hand when the repo has drifted. There is no cron, no sweep, no queue: **you are
 the scheduler.**
 
-The expensive part — deeply mining the repo's history, its prior agent sessions,
-its design intent, its architecture, and its review culture — is done **once**, as a
-single shared pass. Two different artifacts get *written* at the end:
+The useful part is mining the repo's history, prior agent sessions, design
+intent, architecture, and review culture. From that study, propose only the
+artifacts that are worth the repo churn:
 
 - **(a) Repo-readiness** — author or improve the root `AGENTS.md`, decompose depth
-  into focused `docs/` files, and stand up the cross-tool `.agents/skills/` scaffold.
+  into focused `docs/` files, and optionally add project-scoped skills.
   Generic; helps *every* agent that works in the repo, not just reviewers.
-- **(b) Review-tailoring** — generate thin `<team>-squint-*` review shims and
-  `<team>-ctx*` context skills so the generic `squint-kickoff` → `squint-deeper` →
-  `squint-walkthrough` loop runs richer and cheaper for this repo.
+- **(b) Review-tailoring** — generate thin `<project>-squint-*` review shims so
+  the generic `squint-kickoff` -> `squint-deeper` -> `squint-walkthrough` loop
+  runs with this repo's preferred depth, checkout strategy, validation commands,
+  and review context.
 
-Because the deep pass is the cost, the marginal cost of the *second* output is small.
-**Bias strongly toward doing both.**
+Default to the least invasive useful output. Do not turn a first onboarding into
+a large standards PR unless the human wants that.
 
-## Mode is YOUR judgment, not a flag
+## Mode is judgment, not a flag
 
-There is no `--mode` switch, no subcommand keyword, no hardcoded toggle. **You, the
-loading agent, infer intent** from the request and the context:
+There is no hardcoded toggle. Infer intent from the request and the context:
 
 - "author this repo's AGENTS.md" / "make this repo agent-ready" → leans (a).
-- "set up review skills for my team" / "generate the squint shims" → leans (b).
-- "onboard this repo" / "deeply study this before reviewing" / anything vague → **both.**
+- "set up review skills" / "generate the squint shims" -> leans (b).
+- "onboard this repo" / "deeply study this before reviewing" / anything vague ->
+  run the study and propose a small recommended set.
 
-**Default to both.** You have already paid for the deep pass; producing the second
-output is cheap relative to that. Ask the human to disambiguate **only** when intent
-is genuinely unclear *and* the difference actually changes what you'd do. Do not
-manufacture a fork where none is needed.
+Ask the human to disambiguate only when it changes what you would write. Otherwise
+produce a recommendation and wait for approval before writing.
 
-Whatever you produce, the **shared deep pass (Part I) runs in full regardless of
-mode** — it is the foundation for either output.
+Whatever you produce, the study should be sufficient to support the artifact you
+recommend. Do not over-mine sources that are irrelevant to the requested outcome.
 
 ## Hard rules (non-negotiable)
 
 1. **Read-only by default.** Discovery never edits the repo, tickets, docs, PRs, or
    issues. The *only* writes are the artifacts in Parts II/III — and each of those is
    **proposed and shown before it is written**, then written only on explicit human
-   approval. You may run builds/tests/linters (they don't mutate tracked files) and
+   approval. You may run safe local builds/tests/linters when useful and allowed, and
    read-only `gh` queries; never `gh pr review` / `gh pr comment` / `gh pr edit` or any
    mutation.
 2. **Propose, don't impose.** Every file you would create or change in the repo is
@@ -81,17 +80,18 @@ structured pass.
 If the project is genuinely ambiguous (which repo? which path in a monorepo?), ask one
 concise clarifying question. Otherwise proceed.
 
-**Team-name resolution.** If the team is not obvious from the request or context, ask the
-human for it before generating any `<team>-*` artifacts.
+**Project slug resolution.** Before generating any `<project>-squint-*` artifacts,
+choose a short lowercase-hyphen project slug from the repo name or monorepo app
+path. Ask only if the slug would be ambiguous.
 
 ---
 
-# PART I — the shared deep pass (always runs)
+# PART I — the repo study
 
-This is the expensive, manual heart of the skill. **Spawn subagents** for the
-fan-out legs so the breadth doesn't blow your context, and run a **structured
-failure-hunting process** — you are not just cataloguing the repo, you are hunting for
-the bug classes and invariants that future reviews must defend.
+Scope the study to the requested outcome. Use subagents only when available and
+worth the cost; otherwise do a narrower serial pass. You are not just
+cataloguing the repo, you are hunting for the bug classes and invariants that
+future reviews must defend.
 
 ## Phase 0 — Identity, access, source inventory
 
@@ -129,9 +129,10 @@ the existing clone is dirty — never disturb uncommitted work):
   hold authors to. Deviations from the repo's own stated conventions are review findings.
 - **Build/test/lint:** derive the *exact* commands (from instructions first, else
   `package.json` scripts / `Makefile` / `Cargo.toml` / `pyproject.toml` / CI workflows).
-  RUN the test command once to learn its cost — record "fast (~30s)" vs "heavy (~10m,
-  prefer targeted runs)". This block is copy-pasted verbatim into the AGENTS.md
-  Toolchain section and the `<team>-ctx*` skills.
+  If the human asked to test locally, or a cheap safe check is clearly high-value,
+  load `references/local-validation.md` and run it. If the user asked for static
+  analysis/no live testing, do not run runtime checks. Record cost as known,
+  estimated, or not run. This block may feed AGENTS.md and project squint shims.
 - **Churn / dragons:** where the bodies are buried —
   `git log --since=6.months --name-only --pretty=format: | sort | uniq -c | sort -rn | head -20`.
 
@@ -166,10 +167,11 @@ If you've reviewed nothing here yet, mine the repo's culture instead — read th
 threads of the last ~10 merged PRs: what respected reviewers flag, what earns a change
 request, what tone is normal. Mark it `inferred-from-repo, not yet personal`.
 
-## Phase 4 — Failure-hunting fan-out (spawn subagents)
+## Phase 4 — Failure-hunting fan-out
 
-Don't merely map the architecture — **hunt the failure modes.** Spawn focused subagents
-over the high-signal slices and have each return distilled findings (not raw dumps):
+Don't merely map the architecture — **hunt the failure modes.** Use focused
+subagents only when available and worth the cost; otherwise inspect the
+high-signal slices serially. Return distilled findings (not raw dumps):
 
 - **Architecture & boundaries:** major modules, data flows, ownership hints, the 3–5
   load-bearing files. Where do the dragons live (highest churn + most review contention)?
@@ -187,17 +189,17 @@ over the high-signal slices and have each return distilled findings (not raw dum
 Keep a **source log** with provenance (source name, stable link/identifier, date,
 one-line reason it mattered) so any fact can be re-checked later.
 
-At the end of Part I you hold: a distilled architecture map, a risk/invariant register,
-a named set of likely bug classes, the repo's review culture + your reviewer voice, and
-the exact build/test/lint block. **This is the shared substrate for both outputs.**
+At the end of Part I you should have enough to propose a distilled architecture
+map, risk/invariant register, likely bug classes, review culture, reviewer voice,
+and build/test/lint block. Keep raw notes out of committed artifacts.
 
 ---
 
 # PART II — REPO-READINESS output
 
-Goal: leave the repo so that *any* agent (reviewer or not) on *any* surface (Copilot CLI,
-OpenCode, CI) lands well. Two pieces: a lean root `AGENTS.md` (with depth decomposed into
-`docs/`), and the cross-tool `.agents/skills/` scaffold.
+Goal: leave the repo so any agent lands better, without turning onboarding into a
+large process rewrite. Usually this means a lean root `AGENTS.md` plus a small
+review context doc under `docs/`.
 
 **Everything here is proposed and shown before writing (Hard Rule 2).**
 
@@ -212,10 +214,11 @@ short and skimmable. Apply these portable principles:
    `git reset --hard` without same-message authorization) — they must survive skimming.
 3. **Prohibitions as unhedged CAPS imperatives, each with a one-line WHY.** A rule
    without a why gets ignored or lawyered.
-4. **Build/test/lint as a copy-paste block under a "(CRITICAL)" heading** — the verbatim
-   commands from Phase 1, so no agent guesses them.
-5. **No file proliferation, no `_v2`, no compat shims** — stated inline because it shapes
-   every edit an agent makes.
+4. **Build/test/lint as a copy-paste block under a "(CRITICAL)" heading** — commands
+   from Phase 1, clearly marking whether they were run or inferred.
+5. **Code editing discipline** — only include rules that match this repo's actual
+   workflow. Do not add "no compat shims" or similar broad rules unless the repo
+   already wants that norm.
 6. **Architecture as a terse Quick Reference**, with depth **cited to `docs/…` paths**,
    never inlined.
 7. **Per-tool mini-template** for each real tool: purpose · 3–6 commands · 1–3 gotchas ·
@@ -233,7 +236,7 @@ Skeleton (adapt headings to the repo; omit sections with no real content):
 ## RULE 0 — User overrides this document
 ## Hard Safety Rules            (no-delete; irreversible-git; each rule + 1 "why")
 ## Toolchain & Commands         (build/lint/test, copy-paste, "(CRITICAL)")
-## Code Editing Discipline      (edit-in-place; no _v2; no compat shims)
+## Code Editing Discipline      (repo-specific editing rules)
 ## Architecture — Quick Reference   (terse; deep detail → cite docs/ path)
 ## Project-Specific Non-Negotiables (3–6 repo-unique constraints, from Part I)
 ## Per-Tool Reference           (purpose · commands · gotchas · entry-point)
@@ -241,10 +244,10 @@ Skeleton (adapt headings to the repo; omit sections with no real content):
 ## (footer) Re-read this file after any context compaction.
 ```
 
-**Decompose depth into `docs/`.** Anything beyond a Quick Reference — module deep-dives,
-data-flow diagrams, the full invariant register, migration playbooks — becomes a focused
-`docs/<topic>.md` file that AGENTS.md *cites by path*. Push the failure-hunting output
-from Part I into these docs; keep AGENTS.md lean.
+**Decompose depth into `docs/`.** Anything beyond a Quick Reference — module
+deep-dives, data-flow diagrams, invariant register, migration playbooks, review
+style — becomes focused docs such as `docs/agents/reviewing.md` or
+`docs/architecture/<topic>.md` that AGENTS.md cites by path.
 
 **Do NOT cargo-cult Jeffrey Emanuel's idiosyncrasies.** His real files are the *craft*
 model, not a template to copy literally. Specifically reject:
@@ -256,118 +259,89 @@ model, not a template to copy literally. Specifically reject:
 If an `AGENTS.md` already exists, **improve in place** — merge generated sections, leave
 hand-authored sections alone, and show a diff before writing.
 
-## II.B — Cross-tool in-repo layout
+## II.B — In-repo layout
 
-Both Copilot CLI and OpenCode natively read root `AGENTS.md` and both scan
-`.agents/skills/` (and `.claude/skills/`). Set up **one layout, near-zero duplication**:
+Use the right path for each surface. Proposed artifacts are real committed files
+unless the human explicitly chooses a local-only setup:
 
 ```
 repo/
-├── AGENTS.md                       # BOTH tools read natively (CLI + CI). The keystone.
-├── .agents/skills/                 # BOTH tools scan for checked-in skills
-│   ├── <team>-squint-kickoff/SKILL.md
-│   ├── <team>-ctx/SKILL.md
-│   └── <team>-ctx-<project>/SKILL.md
-└── .github/copilot-instructions.md # OPTIONAL, Copilot-only — keep a 1-line "See AGENTS.md."
+├── AGENTS.md
+├── docs/agents/reviewing.md              # durable review context, optional
+├── .agents/skills/                       # local CLI/OpenCode/Copilot CLI project skills
+│   ├── <project>-squint-kickoff/SKILL.md
+│   ├── <project>-squint-deeper/SKILL.md
+│   └── <project>-squint-walkthrough/SKILL.md
+├── .github/skills/code-review/SKILL.md   # GitHub.com Copilot code review, optional
+├── .github/agents/deep-reviewer.agent.md # Copilot cloud custom agent, optional
+└── .github/copilot-instructions.md       # optional thin pointer
 ```
 
 Respect these gotchas:
 
 - **SKILL.md frontmatter is portable.** `name` (lowercase-hyphen = dir name) +
-  `description` are identical across both tools → author once.
+  `description` are the key trigger metadata.
 - **Nested `AGENTS.md` is NOT reliably portable** across surfaces → keep critical rules
   in the **root** `AGENTS.md`.
 - **The `CLAUDE.md` trap:** OpenCode *ignores* `CLAUDE.md` when `AGENTS.md` exists;
   Copilot *merges* it. So make `CLAUDE.md` a thin delegate or a `CLAUDE.md → AGENTS.md`
   symlink — one source of truth.
-- **`.github/copilot-instructions.md`** is only for Copilot surfaces that don't honor
-  AGENTS.md (github.com Chat / code review). Keep it a thin pointer ("See AGENTS.md."),
-  never a duplicate body.
+- **GitHub.com code review:** use `.github/skills/code-review/SKILL.md` for
+  review-specific skill context. Keep `.github/copilot-instructions.md` short
+  because GitHub code review only reads a limited prefix.
 
 ---
 
 # PART III — REVIEW-TAILORING output
 
-Goal: make the generic `squint` loop richer and cheaper *for this repo* — **without
-forking the procedure.** You generate two things: thin review **shims** and **context**
-skills. The procedure lives once in the generic `squint-<verb>` skills; tailoring binds
-context + overrides.
+Goal: make the generic `squint` loop richer and cheaper *for this repo* without
+forking the procedure. Generate project-scoped shims only when they will reduce
+future prompt burden.
 
 **Everything here is proposed and shown before writing (Hard Rule 2).**
 
-## III.A — Thin `<team>-squint-*` shims (NOT forks)
+## III.A — Thin `<project>-squint-*` shims
 
-For each generic verb the team uses (`kickoff`, `deeper`, `walkthrough`, `cloud`),
-generate a `<team>-squint-<verb>` skill that is a **thin shim**:
+For each generic verb the repo actually uses (`kickoff`, `deeper`, `walkthrough`,
+optionally `cloud`), generate a `<project>-squint-<verb>` skill that is a thin
+shim:
 
-> Load `<team>-ctx` (+ the resolved project ctx), then run the generic
-> `squint-<verb>` procedure with these team overrides.
+> Load this repo's `AGENTS.md` and `docs/agents/reviewing.md` if present, then run
+> the generic `squint-<verb>` procedure with these project defaults.
 
-It is **not** a copy of the procedure — it references the generic skill and carries only
-the bindings and the handful of team tweaks. No procedure duplication. The prefix stops
-at **team, not project**: `<team>-squint-kickoff <url>` resolves the project at runtime
-from the PR's repo/path against each context skill's `repos:` / `paths:` frontmatter, so
-join-form-vs-full-app (two repos, or one monorepo split by path) is handled by **context
-resolution, not by more name segments.**
+The shim is not a copy of the procedure. It carries only project defaults:
+preferred review depth, checkout strategy (`current-folder` vs worktree),
+safe local validation commands, whether worktrees are preferred, known risky
+subsystems, and optional panel roster. In a monorepo, use the app slug:
+`join-form-squint-kickoff`, `admin-squint-kickoff`, etc.
 
-## III.B — `<team>-ctx` and `<team>-ctx-<project>` context skills
+## III.B — Durable review context
 
-- **`<team>-ctx`** — team-wide, lives-once facts: shared review doctrine, severity
-  taxonomy, the team's reviewer-voice patterns, cross-repo conventions. **This is also
-  where model specifics live.** The distributed squint skills stay generic (latest
-  model *family* at high effort, never a pinned version); if a team wants determinism or
-  a tuned panel, record a detailed roster HERE — exact model ids, per-project overrides,
-  reasoning-effort settings, and lens→model assignments — and `squint-panel` will use it,
-  falling back to the generic latest-family defaults when it's absent. Be detailed in
-  `<team>-ctx`; keep the suite generic.
-- **`<team>-ctx-<project>`** — per-project context distilled from Part I: architecture
-  map (or a pointer to `docs/`), build/test/CI block, domain invariants, risk register,
-  the project's review lenses, and a standing pre-diff checklist. It opens with **"load
-  `<team>-ctx` first"** — referencing, not copying.
+Put durable context in docs, not in a separate context skill:
 
-Both carry **`repos:` / `paths:` frontmatter** so the shims can resolve the right
-project context at runtime from a PR URL.
+- `docs/agents/reviewing.md` — concise review-relevant context: architecture map,
+  build/test/CI commands, local validation safety notes, risk register, review
+  lenses, reviewer voice, and links/provenance.
+- `docs/architecture/*.md` or existing docs — deeper context only if needed.
+- Optional model roster for `squint-panel` lives in the project shim or
+  `docs/agents/reviewing.md`, not in the generic distributed skill.
 
-**`<team>-ctx` first-creation (bootstrap).** Check whether `~/.agents/skills/<team>-ctx/`
-already exists. If it **does**, symlink it into this project repo's `.agents/skills/` —
-later repos reuse the existing team context. If it does **not**, generate it from the
-shared deep pass (Part I), write `~/.agents/skills/<team>-ctx/SKILL.md`, then symlink it
-in. So the first repo onboarded for a team *creates* `<team>-ctx`; every later repo
-*reuses* it.
+## III.C — Distribution defaults
 
-## III.C — Committed vs symlinked, and the link manifest
+Project-specific artifacts should be real committed files so teammates and CI see
+the same behavior. Do not create local symlinks by default.
 
-Apply the policy by artifact type:
+| Artifact | Default |
+|---|---|
+| `<project>-squint-*` shims | real committed files under `.agents/skills/` |
+| durable review context | real committed docs under `docs/agents/` |
+| GitHub code review skill | real committed `.github/skills/code-review/SKILL.md` when enabled |
+| Copilot cloud custom agent | real committed `.github/agents/*.agent.md` when enabled |
+| generic `squint-*` | installed globally on each developer machine |
 
-| Artifact | In a project repo | Symlink? |
-|---|---|---|
-| `<team>-squint-*` shims | **real committed files** (must travel to CI/teammates) | No |
-| `<team>-ctx-<project>` (project context) | **real committed file** | No |
-| `<team>-ctx` (team-shared, used by many repos) | lives once canonically, needed in N repos | **Yes — symlinked** |
-| generic `squint-*` | already global via `~/.agents/skills` | Optional |
-
-Rule of thumb: **project-unique artifacts are real committed files; only shared,
-lives-once, needed-in-many-places artifacts are symlinked.**
-
-For the symlinked `<team>-ctx`:
-
-1. **Per-project LINK MANIFEST** — a **committed** file at the repo root,
-   `.agents/squint-links.md`, one entry per symlink: `target → source`, purpose, and a
-   `local-only` flag. The symlinks themselves are local-only/gitignored, but the manifest
-   that documents them is committed, so CI and teammates know which local links to recreate
-   (the CI-doesn't-get-symlinks fallback below).
-2. **Idempotent re-link step** — re-running onboarding re-asserts links with the same
-   collision logic as `install.sh`: quiet if already correct, warn on a foreign clobber,
-   skip real dirs. A per-project mini-installer.
-3. **Gitignored, never committed** — a symlink into `~/.agents/skills/...` won't resolve
-   elsewhere, so add it to `.gitignore` / `.git/info/exclude`.
-
-**State the CI caveat explicitly in the notes:** symlinks do NOT travel to CI or to
-teammates. For shared team context, record the chosen fallback — *either* CI runs an
-install step (or clones a team-skills repo), *or* that one shared file is committed as a
-real copy into each repo and **re-synced on every re-onboard**. Symlink = zero drift but
-local-only; committed copy = travels but you re-sync it. **Document which choice this
-project made.**
+If the team already has a shared skills repo or bootstrap script, reference that
+mechanism. Otherwise do not invent local-only symlink infrastructure during first
+onboarding.
 
 ---
 
@@ -382,16 +356,15 @@ Return, concisely:
 4. **Reviewer voice** — the 3 strongest standing themes (or `inferred-from-repo` if you
    had no prior reviews here).
 5. **Repo-readiness output** (if produced): the AGENTS.md you authored/improved, the
-   `docs/` files you decomposed depth into, and the `.agents/skills/` scaffold — each
+   `docs/` files you decomposed depth into, and any project skill scaffold — each
    shown and approved before writing.
-6. **Review-tailoring output** (if produced): the `<team>-squint-*` shims and
-   `<team>-ctx*` context skills generated, plus the LINK MANIFEST and the committed-vs-
-   symlinked / CI fallback choice for `<team>-ctx`.
+6. **Review-tailoring output** (if produced): the `<project>-squint-*` shims,
+   durable review docs, and any GitHub-specific code-review/cloud-agent files.
 7. **What you deliberately produced or skipped** and why (the mode judgment) — and if you
    produced only one output, a one-line note that the deep pass is already paid for, so
    the other output is cheap to add on request.
 
 Close with:
 
-> Ready — `squint-kickoff <PR url>` (or `<team>-squint-kickoff <PR url>`) when the next
+> Ready — `squint-kickoff <PR url>` (or `<project>-squint-kickoff <PR url>`) when the next
 > review ping lands. Re-run `squint-onboard` by hand when this repo drifts.

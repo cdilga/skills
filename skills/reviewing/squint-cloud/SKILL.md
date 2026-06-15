@@ -1,6 +1,6 @@
 ---
 name: squint-cloud
-description: Set up, run, and harvest PR reviews on GitHub's remotely-hosted Copilot agents — native Copilot code review plus propose-only deep-review sessions on the cloud coding agent — normalizing every cloud finding back into the local ~/.squint findings so the human verdict still happens locally via squint-walkthrough. Three intent-driven modes (setup / review PR N / harvest PR N). Read-only on the repo; cloud agents are propose-only; never posts the human's review.
+description: Explicitly gated cloud lane for PR reviews on GitHub Copilot — native Copilot code review plus optional propose-only cloud-agent sessions — normalizing cloud findings back into outside-repo squint review scratch so the human verdict still happens locally via squint-walkthrough. Three modes: setup / review PR N / harvest PR N. Read-only locally; cloud agents are treated as expensive and not structurally read-only; never posts the human's review.
 triggers:
   - squint-cloud
   - run the review in the cloud
@@ -12,7 +12,8 @@ triggers:
 
 # squint-cloud — the remotely-hosted lane
 
-Use GitHub's hosted agents as extra reviewers feeding YOUR findings. They are
+Use GitHub's hosted agents as extra reviewers feeding YOUR findings. This is an
+explicit escalation path, not a default part of every review. They are
 PROPOSE-ONLY: they hand you leads, never verdicts, and never code changes you
 keep. Two cloud surfaces, different jobs:
 
@@ -28,7 +29,7 @@ keep. Two cloud surfaces, different jobs:
 
 1. **Read-only on the local repo.** No file edits, no `git commit/push/reset`,
    no `gh` mutation while analyzing. The only local writes are under
-   `~/.squint/`. The exceptions are the deliberate cloud requests in
+   the squint state dir. The exceptions are the deliberate cloud requests in
    *setup* and *review* below, each shown before it runs.
 2. **Cloud agents are PROPOSE-ONLY.** Every instruction you send a hosted agent
    states verbatim that it must not push commits or modify files — only reply
@@ -41,11 +42,11 @@ keep. Two cloud surfaces, different jobs:
 
 ## Per-PR state (disposable)
 
-Everything for a PR lives under `~/.squint/<owner>/<repo>/pr-<N>/`:
-`worktree/`, `findings.md`, `meta.json`. squint-cloud writes only `findings.md`
-(adding cloud-sourced entries) and a `cloud:` block in `meta.json`. It does not
-own the worktree. Per-repo cloud-lane setup notes live one level up in
-`~/.squint/<owner>/<repo>/repo-notes.md`.
+Everything for a PR lives under `<squint-state>/<owner>/<repo>/pr-<N>/`:
+`review.md`, `meta.json`, optional `checkout/`, optional `logs/`. squint-cloud
+writes only `review.md` (adding cloud-sourced entries) and a `cloud` block in
+`meta.json`. It does not own the checkout. Per-repo cloud-lane setup notes live
+one level up under the squint state dir.
 
 ## Mode is intent, not a flag
 
@@ -58,7 +59,8 @@ PR 42" → review. "Pull in what the cloud found" → harvest.
 ## Mode: SETUP (once per repo)
 
 Propose the checked-in artifacts that make cloud reviewers converge on your
-review doctrine, then (if allowed) wire up the native auto-pass.
+review doctrine, then (if allowed) wire up the native auto-pass. Show every file
+before writing it.
 
 1. **Check what the org allows** — don't promise what's disabled.
    `gh api repos/<owner>/<repo>` for access and permissions. Coding-agent
@@ -66,20 +68,23 @@ review doctrine, then (if allowed) wire up the native auto-pass.
    blocked, name the admin switch needed rather than failing silently. Defer
    actually requesting a reviewer to the *review* mode.
 
-2. **Propose `.github/` artifacts as one PR** (show every file before creating
+2. **Propose GitHub-specific artifacts as one PR** (show every file before creating
    it; the human approves; you do not push it yourself unless they ask). Cloud
    reviewers read instruction/skill files from the **base branch**, so these
    take effect only after the PR merges — say so.
-   - A **condensed review doctrine as a checked-in skill**, placed where both
-     tools find it: `.agents/skills/squint-cloud-doctrine/SKILL.md` (Copilot
-     CLI and OpenCode both scan `.agents/skills/`). If you want it visible to
-     the github.com Copilot code reviewer too, also place / pointer it under
-     `.github/skills/`. The body is a distilled `squint-kickoff`: severity
+   - For GitHub.com Copilot code review, use a review-focused skill under
+     `.github/skills/code-review/SKILL.md`. The body is a distilled
+     `squint-kickoff`: severity
      taxonomy (blocker/major/minor/nit/question), the `file:line @ sha`
      evidence-anchor rule, the omissions checklist, and "propose fixes, never
      push fixes while reviewing."
-   - A **custom deep-reviewer agent definition** at
-     `.github/agents/deep-reviewer.md`:
+   - For Copilot CLI / OpenCode, project-specific shims may live under
+     `.agents/skills/<project>-squint-*/SKILL.md`. Do not rely on `.agents/skills`
+     alone for GitHub.com code review.
+   - A **custom deep-reviewer agent profile** at
+     `.github/agents/deep-reviewer.agent.md`, with the platform's required YAML
+     frontmatter (`description`, and restrictive `tools` where supported) plus a
+     propose-only prompt:
      > You are a PROPOSE-ONLY deep reviewer. Trace execution flows beyond the
      > diff, hunt omissions (tests, migrations, callers, failure modes), then a
      > fresh-eyes pass. Reply with findings — each as severity, file:line,
@@ -97,51 +102,51 @@ review doctrine, then (if allowed) wire up the native auto-pass.
    flips the admin switch.
 
 4. **Record** what was set up and what the org blocked in
-   `~/.squint/<owner>/<repo>/repo-notes.md` under `## cloud lane`.
+   `<squint-state>/<owner>/<repo>/repo-notes.md` under `## cloud lane`.
 
 ---
 
 ## Mode: REVIEW PR <N>
 
+Before doing anything, confirm the intended cloud depth unless the user's request
+already makes it explicit:
+
+- **native only** — request GitHub Copilot code review. Cheapest cloud option.
+- **deep cloud** — start a Copilot cloud-agent task/session. More expensive and
+  less structurally read-only; use only when asked or clearly warranted.
+
 1. **Native pass.** Request Copilot code review:
    ```bash
-   gh pr edit <N> --add-reviewer copilot
+   gh pr edit <N> --repo <owner>/<repo> --add-reviewer copilot
    ```
    Skip if a Copilot review already exists on the latest head — check
    `gh api repos/<owner>/<repo>/pulls/<N>/reviews`.
 
-2. **Deep pass (coding agent), propose-only.** Kick a session by mentioning the
-   agent in one PR comment:
-   ```bash
-   gh pr comment <N> --body "@copilot <instruction>"
-   ```
-   The instruction invokes the deep-reviewer doctrine explicitly, e.g.:
-   > @copilot Act as the deep-reviewer agent. Review this PR PROPOSE-ONLY: do
-   > NOT push commits, do NOT change files, do NOT open PRs. Trace the changed
-   > code's execution flows beyond the diff, hunt for bugs and omissions
-   > (tests, migrations, callers, failure modes), then re-check with fresh
-   > eyes. Reply with a findings list: severity, file:line, evidence, and a
-   > proposed fix as a text diff. <plus any steering from the human>
+2. **Deep pass (coding agent), propose-only and explicitly gated.** Prefer the
+   current first-party task surfaces instead of PR-comment folklore:
+   - If `gh agent-task create` is available (`gh` v2.80+), use it only after the
+     human approves the exact prompt. Check `gh agent-task create --help` for the
+     current flags.
+   - If using the Agent Tasks API, set `create_pull_request: false` when the API
+     supports it and record the task id in `meta.json`.
+   - Otherwise use the github.com Agents panel and tell the human the exact click
+     path.
 
-   The mention only works if the human has write access and the agent is
-   enabled. Otherwise fall back to starting the session from the agents panel
-   on github.com — tell the human the exact click path (Pull request → Copilot
-   → "Start a coding agent session" → paste the instruction above).
+   The instruction invokes the deep-reviewer doctrine explicitly:
+   > Act as the deep-reviewer agent for PR <N>. Review PROPOSE-ONLY: do NOT push
+   > commits, do NOT change files, do NOT open PRs. Trace the changed code's
+   > execution flows beyond the diff, hunt for bugs and omissions (tests,
+   > migrations, callers, failure modes), then re-check with fresh eyes. Reply
+   > with a findings list: severity, file:line, evidence, and proposed fix as
+   > text. <plus any steering from the human>
 
 3. **Don't block waiting** — sessions take minutes to ~an hour. Tell the human
    to come back and run `squint-cloud harvest PR <N>`, or just continue local
    `squint-deeper` rounds meanwhile; the lanes are independent.
 
-### Headless invocation (pin / mark unverified)
-
-There is no first-party fully-headless "request a coding-agent review and block
-for the reply" CLI as of this writing — the verified path is the `gh` calls
-above plus the github.com agents panel. If a harness exposes a non-interactive
-coding-agent trigger, parameterize and pin it here as `<headless-trigger>` with
-its exact flags; **until verified, treat any such invocation as unverified and
-prefer the `gh`/panel path above.** Native Copilot code review via
-`gh pr edit --add-reviewer copilot` IS the supported headless trigger for the
-native lane.
+Cloud agent is a code-generating surface by design. Prompting it to be
+propose-only reduces risk but does not make it structurally read-only. Harvest
+must therefore check for commits or PRs it created.
 
 ---
 
@@ -150,17 +155,18 @@ native lane.
 1. **Pull everything the cloud produced** since the last harvest:
    - `gh api repos/<owner>/<repo>/pulls/<N>/reviews` and `.../comments` —
      Copilot code review inline findings.
-   - `gh pr view <N> --json comments` — the coding agent's findings reply.
+   - `gh pr view <N> --repo <owner>/<repo> --json comments` — the coding agent's findings reply.
 
 2. **Normalize into the local findings** at
-   `~/.squint/<owner>/<repo>/pr-<N>/findings.md`, using the same entry format as
+   `<squint-state>/<owner>/<repo>/pr-<N>/review.md`, using the same entry format as
    the rest of the suite, tagged `source: copilot-cloud` (coding agent) or
    `source: copilot-review` (native reviewer):
    ```markdown
-   ## F<id> — [<severity>] <one-line title>
+   ## F<id> - [<severity>] <one-line title>
    - anchor: src/cache/flush.ts:142 @ a1b2c3d
    - state: open
    - source: copilot-cloud
+   - diff: right line 142 | body-only
    - evidence: <quoted excerpt + why it's a problem>
    - proposed fix: <text diff when given>
    - round: cloud
@@ -174,14 +180,12 @@ native lane.
    the cited code yourself and confirm it. Downgrade to `question` anything you
    cannot confirm. Cloud findings are leads, not verdicts.
 
-4. **Flag propose-only violations loudly.** If the coding agent pushed commits
-   or modified files despite the instruction (check `gh pr view <N> --json
-   commits` for commits authored by the agent since you kicked the session),
-   surface it prominently: the human may want those commits reverted by the
-   author and the findings re-derived from the diff as it was actually
-   reviewed. Note the violation in `meta.json` under `cloud:`.
+4. **Flag propose-only violations loudly.** If the coding agent pushed commits,
+   opened a PR, or changed a branch despite the instruction, surface it
+   prominently. Check task/session metadata, PR commits, and bot-authored
+   branches where available. Note the violation in `meta.json.cloud`.
 
-5. **Hand off.** Update the `cloud:` block in `meta.json` (last harvest sha,
+5. **Hand off.** Update the `cloud` block in `meta.json` (last harvest sha,
    sources seen, any violation), then: "findings updated — continue with
    `squint-deeper` or go to `squint-walkthrough` to step through and post."
 

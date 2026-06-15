@@ -1,7 +1,7 @@
 # squint — a PR review suite for a trusted human reviewer
 
-Five skills that turn "someone pinged me to review their PR" into a deep,
-multi-round, propose-only review where **you** stay the reviewer of record. Built
+Six skills that turn "someone pinged me to review their PR" into a gated,
+propose-only review where **you** stay the reviewer of record. Built
 for Copilot CLI and OpenCode (also works in Claude Code and any harness that reads
 `~/.agents/skills`).
 
@@ -14,8 +14,9 @@ two deliberate changes:
    Codex, the cloud coding agent) only ever *propose* fixes as text. Findings
    accumulate as scratch; you step through them one by one and the review is posted
    only after you say so.
-2. **No bespoke tooling, no background jobs.** Plain `gh`, `git` worktrees, and the
-   filesystem. Per-PR state is disposable — once the review is posted, GitHub is the
+2. **No bespoke tooling, no background jobs.** Plain `gh`, `git`, optional
+   worktrees, and the filesystem. Per-PR state is disposable and lives outside
+   the repo by default — once the review is posted, GitHub is the
    record. There is no scheduled maintenance: **you are the scheduler.**
 
 ## The flow
@@ -25,18 +26,18 @@ Teams ping: "can you review my PR?" → copy the link
 │
 ▼ paste into your harness (Copilot CLI / OpenCode)
 squint-onboard for org/repo        # optional, once — repo docs and/or review tailoring
-squint-kickoff https://github.com/org/repo/pull/123
-│   boot context (AGENTS.md / repo docs / team ctx, else generics) → git worktree
-│   → deep exploration (subagents) → diff review → wider net → fresh-eyes pass
-│   → propose-only consult → findings scratch + ranked recommendations
+squint-kickoff https://github.com/org/repo/pull/123 [fast|standard|deep]
+│   boot context (AGENTS.md / repo docs / project shim, else generics)
+│   → choose checkout (current folder / existing clone / worktree / scratch clone)
+│   → depth-gated exploration → optional safe local validation → findings scratch
 ▼ (come back; loop as many times as you like, with optional steering)
 squint-deeper
 squint-deeper focus on the migration and rollback path
 │   each round: new lens (incl. a verification lens) + random deep inspection
-│   + fresh eyes + consult; only NEW findings; stop after 2 dry rounds
+│   + fresh eyes + optional consult; only NEW findings; stop after 2 dry rounds
 │
 ├─▶ squint-panel            # OPTIONAL deep adversarial path, when a PR warrants it
-│     a panel of different models (Gemini / GPT-5.4 / Opus, overridable), each a
+│     a panel of different model families (Gemini / OpenAI / Opus, overridable), each a
 │     distinct lens → cross-examine each other's findings → survivors fold in
 ▼
 squint-walkthrough
@@ -78,32 +79,34 @@ copilot   # or: opencode
 | `squint-deeper` | Loop for more findings, optionally steered ("focus on X"); rotates lenses including a verification lens |
 | `squint-walkthrough` | Step through the findings, then draft + post the review. **The only skill that posts.** |
 | `squint-cloud` | Set up / run / harvest reviews on the GitHub Copilot coding agent |
-| `squint-panel` | *Optional* deep adversarial path — a panel of different models (Gemini / GPT-5.4 / Opus, overridable), distinct lenses, cross-examined |
-| `squint-onboard` | Heavy, manual, one-time deep pass — see below |
+| `squint-panel` | *Optional* deep adversarial path — a panel of different model families (Gemini / OpenAI / Opus, overridable), distinct lenses, cross-examined |
+| `squint-onboard` | Manual repo study that proposes lightweight repo artifacts — see below |
 
-## Onboarding — one deep pass, two kinds of output
+## Onboarding — one study, lightweight artifacts
 
-`squint-onboard` runs the expensive part once (mining source history, work history,
-design docs, prior agent/session history, architecture — using subagents) and from
-that shared pass produces either or both of:
+`squint-onboard` mines source history, work history, design docs, prior
+agent/session history, architecture, and review culture as deeply as the request
+warrants. It can then propose:
 
 - **Repo readiness** — author/improve the repo's root `AGENTS.md` (lean, behaviour-
   changing guardrails; depth decomposed into focused `docs/`) and scaffold the
-  cross-tool `.agents/skills/` layout. Benefits *every* agent in the repo.
-- **Review tailoring** — generate `<team>-squint-*` thin shims and `<team>-ctx*`
-  context skills (with `repos:` / `paths:` frontmatter) that sharpen later reviews.
+  review docs and optional project skills. Benefits *every* agent in the repo.
+- **Review tailoring** — generate `<project>-squint-*` thin shims that set the
+  repo's preferred depth, checkout strategy, safe local validation commands, and
+  review lenses without copying the generic procedure.
 
-Which it does is the loading agent's judgement, with a bias toward **both** (the deep
-pass is already paid for). Session-history mining is tool-agnostic — it uses whatever
-prior-session search you have, and degrades gracefully if you have none.
+Which it proposes is the loading agent's judgement, with a bias toward the least
+invasive useful artifact. Session-history mining is tool-agnostic — it uses
+whatever prior-session search you have, and degrades gracefully if you have none.
 
 ## State — disposable
 
 ```
-~/.squint/<owner>/<repo>/pr-<N>/
-  worktree/      # git worktree checkout of the PR head
-  findings.md    # the scratch ledger — appended across rounds
-  meta.json      # head SHA reviewed, round count, posted state
+<squint-state>/<owner>/<repo>/pr-<N>/
+  review.md      # human-facing scratch, outside the repo
+  meta.json      # head SHA, depth, checkout strategy, round state
+  logs/          # optional local validation logs
+  checkout/      # optional, only when squint created one
 ```
 
 It's all plain text and **disposable**: `squint-walkthrough` offers to remove it
@@ -112,11 +115,10 @@ archives it; re-run `squint-onboard` by hand when a repo's context drifts.
 
 ## Cross-tool & CI
 
-Both Copilot CLI and OpenCode natively read a repo's root `AGENTS.md` and both scan
-`.agents/skills/`, so anything `squint-onboard` checks into a repo works for both
-tools — locally and in CI — from one layout. Keep critical rules in **root**
-`AGENTS.md` (nested files aren't reliably portable); `.github/copilot-instructions.md`
-is optional and should be a thin pointer to `AGENTS.md`.
+Use the right path for each surface. Project CLI skills live under
+`.agents/skills/<project>-squint-*`. GitHub.com Copilot code review should use
+`.github/skills/code-review/SKILL.md`; cloud custom agents use
+`.github/agents/*.agent.md`. Keep critical rules in **root** `AGENTS.md`.
 
 ## House rules (every skill enforces these)
 

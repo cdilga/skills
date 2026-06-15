@@ -1,6 +1,6 @@
 ---
 name: squint-kickoff
-description: First deep review round on a GitHub PR from just its URL — boot repo context cold, worktree-checkout the PR head, fan subagents across subsystems, trace execution flows, review the diff, hunt omissions, re-read adversarially, optionally consult a second model, and write disposable per-PR findings with ranked reviewable artifacts. You stay the reviewer of record. Never edits code, never posts. Hand off to squint-deeper and squint-walkthrough.
+description: First review round on a GitHub PR from just its URL — choose a safe checkout strategy (current folder, existing clone, worktree only when requested/preferred, or scratch clone), apply a fast/standard/deep/adversarial depth gate, trace execution flows, optionally run safe local validation, and write disposable outside-repo review scratch. You stay the reviewer of record. Never edits code, never posts. Hand off to squint-deeper and squint-walkthrough.
 triggers:
   - squint-kickoff
   - squint this PR
@@ -11,20 +11,20 @@ triggers:
   - start a squint review
 ---
 
-# squint-kickoff — first deep review round on a PR
+# squint-kickoff — first review round on a PR
 
 You are a careful senior reviewer's research assistant. The **human is the
 reviewer of record**. Your output is a set of **ranked, anchored findings** —
-never code changes, never GitHub posts. This skill works **cold**: no
-onboarding required. If team context exists it makes the review richer and
-cheaper, but it is never a precondition.
+never code changes, never GitHub posts. Keep the workflow light by default and
+escalate only when the user or repo context asks for more depth.
 
 ## House rules (non-negotiable, for you AND any model you consult)
 
 1. **Read-only on the repo during analysis.** During analysis, squint-kickoff is
    strictly read-only on the repo and makes no GitHub mutations (no `gh pr review`,
    `gh pr comment`, `gh pr edit`, `gh pr merge`, …) and no
-   `git commit/push/reset`; its only writes are under `~/.squint/`. The suite's two
+   `git commit/push/reset`; its only writes are outside the repo under the squint
+   state dir. The suite's two
    deliberate GitHub-mutation exceptions live in *other* skills —
    `squint-walkthrough` (posts the final verdict) and `squint-cloud` (explicit,
    shown-before-run cloud-orchestration requests). Kickoff itself still never mutates.
@@ -42,79 +42,93 @@ Anything after the link is **steering** — extra emphasis from the human (e.g.
 "they're worried about the migration"). Honor steering as an additional lens,
 never as a reason to skip phases.
 
-## Per-PR state (disposable)
+## Review depth gate
 
-Everything lives under `~/.squint/<owner>/<repo>/pr-<N>/`:
+Infer depth from the user's words, repo onboarding, PR size/risk, and available
+time. Ask only if the difference matters.
+
+- **fast / quick / static only** — cheap static review. No subagents, no
+  consultant CLIs, no cloud, no tests/dev servers unless explicitly requested.
+- **standard** — default. Single-agent review with targeted code tracing and cheap
+  local checks when they are likely to pay off.
+- **deep** — broader local exploration, optional subagents if the harness supports
+  them, targeted local validation, and at most one propose-only consultant.
+- **adversarial / panel / multi-agent** — do not start from kickoff by default.
+  Tell the human this is the expensive path and hand off to `squint-panel` only
+  when explicitly requested or clearly warranted.
+
+If the user says "test locally", "run it", or "boot the app", load
+`references/local-validation.md` and make a safe local validation plan. If they
+say "no live testing" or "just analyse statically", do not run local runtime
+checks.
+
+## Per-PR state (disposable, outside the repo)
+
+Keep all scratch outside the target repository by default. Use
+`references/state-and-anchors.md` when exact layout or schema matters.
 
 ```
-~/.squint/<owner>/<repo>/pr-<N>/
-├── worktree/      # git worktree checkout of the PR head
-├── findings.md    # scratch, appended across rounds — NOT a permanent ledger
-└── meta.json      # { pr, url, head_sha, base, rounds, status }
+<squint-state>/<owner>/<repo>/pr-<N>/
+├── review.md      # human-facing scratch
+├── meta.json      # compact machine state
+├── logs/          # optional validation logs
+└── checkout/      # optional, only if squint created one
 ```
 
 This dir is **disposable**. Nothing sweeps it, nothing archives it, there is no
 scheduled maintenance. Once `squint-walkthrough` posts, **GitHub is the
-record** and the worktree can be torn down. Reviewer voice, when needed, is
+record** and any checkout squint created can be torn down. Reviewer voice, when needed, is
 mined from posted GitHub reviews via `gh` — never from this local scratch.
 
-**Teardown for an abandoned round.** If you abandon a review before handing off,
-remove the worktree and scratch dir explicitly:
-
-```bash
-git worktree remove ~/.squint/<owner>/<repo>/pr-<N>/worktree --force
-rm -rf ~/.squint/<owner>/<repo>/pr-<N>
-```
-
-`--force` is required because the checkout is detached. Post-success teardown is
-offered by `squint-walkthrough`; this teardown is only for a round you walk away from.
-
-## Phase 0 — Parse the URL & worktree checkout
+## Phase 0 — Parse the URL & choose checkout strategy
 
 ```bash
 gh auth status                          # fail early with a clear message if not logged in
 ```
 
 - Parse `<owner>`, `<repo>`, `<N>` from the URL (or `owner/repo#N`).
-- Locate a local clone: check the current directory, then common dev dirs
-  (`~/Documents/dev`, `~/dev`, `~/work`, `~/src`). If none is found, clone with
-  `gh repo clone <owner>/<repo>` into a scratch path.
-- Create the per-PR dir and a **git worktree** of the PR head so you never
-  disturb anyone's working tree:
-
-  ```bash
-  mkdir -p ~/.squint/<owner>/<repo>/pr-<N>
-  cd <local-clone>
-  git fetch origin pull/<N>/head
-  git fetch origin <base>
-  git worktree add ~/.squint/<owner>/<repo>/pr-<N>/worktree FETCH_HEAD
-  ```
-
-  Do all analysis inside that `worktree/`. Never `gh pr checkout` into a clone
-  that has uncommitted work. **The worktree checks out in DETACHED HEAD with no
-  local branch** — there is no branch ref to name. For the diff, always reference
-  the remote base explicitly: `git diff origin/<base>...HEAD`, never a bare local ref.
-- **Base divergence (first-class metadata).** Compute how far the PR branch is
-  behind base and record it — a stale branch is a high-value signal:
-
-  ```bash
-  git rev-list --count $(git merge-base HEAD origin/<base>)..origin/<base>
-  ```
-
-  Write the count into `meta.json` as `behind_base`. **FLAG it prominently in
-  the report if it is large** — a branch that lags base by many commits is often
-  the root cause of the biggest finding; surface it as such.
-- Capture metadata and write `meta.json`:
+- Fetch PR metadata first:
 
   ```bash
   gh pr view <N> --repo <owner>/<repo> \
     --json number,url,headRefOid,baseRefName,title,author,body,labels
   ```
 
-  ```json
-  { "pr": N, "url": "…", "head_sha": "…", "base": "…",
-    "behind_base": 0, "rounds": 0, "status": "in-review" }
+- Locate a checkout: current directory first, then common dev dirs
+  (`~/Documents/dev`, `~/dev`, `~/work`, `~/src`). If none is found, clone into
+  the squint state dir or another scratch path.
+- Choose the least disruptive checkout strategy:
+  - **current-folder** when the current directory is the right repo and already
+    corresponds to the PR head or the user clearly asked to review the current
+    checkout.
+  - **existing-clone** when another clean local clone can be used without branch
+    changes.
+  - **worktree** only when the user requested worktrees, repo onboarding says
+    worktrees are preferred, the current clone is dirty/wrong branch, or parallel
+    reviews would collide.
+  - **scratch-clone** when no safe local checkout exists.
+- Identify the remote for the base repo (often `origin`, but do not assume this
+  in fork-heavy checkouts). If using a worktree, fetch into explicit refs so
+  `FETCH_HEAD` cannot be overwritten by a later fetch:
+
+  ```bash
+  git fetch <base-remote> "+pull/<N>/head:refs/remotes/<base-remote>/pr/<N>" \
+    "+refs/heads/<base>:refs/remotes/<base-remote>/<base>"
+  git worktree add <squint-state>/<owner>/<repo>/pr-<N>/checkout refs/remotes/<base-remote>/pr/<N>
   ```
+
+  For diffs, use `git diff <base-remote>/<base>...HEAD`.
+- **Base divergence (first-class metadata).** Compute how far the PR branch is
+  behind base and record it — a stale branch is a high-value signal:
+
+  ```bash
+  git rev-list --count $(git merge-base HEAD <base-remote>/<base>)..<base-remote>/<base>
+  ```
+
+  Write the count into `meta.json` as `behind_base`. Flag it if it is large.
+- Write `meta.json` using the schema in `references/state-and-anchors.md`,
+  including `depth`, `checkout.strategy`, `checkout.path`, `base_remote`,
+  `head_sha`, `base_sha`, and `merge_base_sha`.
 
 ## Phase 1 — Study repo agent instructions (always before the code)
 
@@ -122,15 +136,15 @@ Boot context. Load whichever exist, in this order, and **comply with every rule
 in them when judging the code** — deviations from the repo's own stated
 conventions are findings:
 
-- Any installed team context skills — `<team>-ctx*` (e.g. `acme-ctx`,
-  `acme-ctx-<project>`) — resolved against the PR's repo/path. These carry
-  team-shared and project-specific review knowledge.
+- Any installed repo-specific squint shim, e.g. `<project>-squint-kickoff`, if
+  the user invoked it. Treat it as steering plus repo context, not a fork of this
+  procedure.
 - In the repo: `AGENTS.md` (root, which is the keystone — nested ones are less
   portable), `CLAUDE.md`, `.github/copilot-instructions.md`,
   `.github/instructions/*.instructions.md`, `CONTRIBUTING.md`, `README.md`,
   and any `docs/` files those cite.
 
-If no team context skill is present, that is fine — you run on generics. Mention
+If no repo-specific squint skill is present, that is fine — you run on generics. Mention
 **once** that running `squint-onboard` on this repo would make future reviews
 richer, then continue without it.
 
@@ -140,13 +154,13 @@ better-timed than any scheduled check.
 
 Discover how the project builds and tests (from instructions first, else infer
 from `package.json` / `Cargo.toml` / `Makefile` / `pyproject.toml` / CI
-workflows). You MAY run tests and builds inside the worktree — they don't mutate
-tracked files — but prefer targeted runs over full suites on big repos.
+workflows). Run local validation only according to the depth and steering gates
+above; load `references/local-validation.md` if runtime checks are in scope.
 
 ## Phase 2 — PR context load
 
-- `gh pr view <N> --json title,body,author,labels,reviews,comments,files,additions,deletions`
-- `gh pr checks <N>` — note failing/flaky CI. When judging CI health, **ignore
+- `gh pr view <N> --repo <owner>/<repo> --json title,body,author,labels,reviews,comments,files,additions,deletions`
+- `gh pr checks <N> --repo <owner>/<repo>` — note failing/flaky CI. When judging CI health, **ignore
   `skipping`/conditional lanes** — they are not failures.
 - **Linked work items:** only if the PR body or repo instructions reference a
   tracker/CI system AND its CLI exists locally (`which …`), pull that context.
@@ -168,20 +182,19 @@ Do NOT start from the diff. First understand the territory the diff lands in:
 > import or which they are imported by, until you understand the purpose of the
 > changed code in the larger context of the workflows it participates in.
 
-**Fan out subagents to explore distinct subsystems in parallel.** Identify the
-separable subsystems the diff touches (e.g. the data layer, the API surface, the
-background jobs, the auth path) and spawn one subagent per subsystem, each told:
-read-only; trace callers/callees, related tests, and any config/migration/schema
-it interacts with; report back a compact model plus suspicious spots with
-`file:line` anchors. Merge their reports.
+For **fast** reviews, keep this to the minimum needed to avoid shallow
+diff-only mistakes. For **standard** reviews, trace the main callers/callees and
+nearby tests. For **deep** reviews, split distinct subsystems and use subagents
+only if the harness supports them and the extra cost is justified. If subagents
+are unavailable, do the same work serially and say so.
 
-Write a short shared mental model (2–10 lines) at the top of `findings.md` under
+Write a short shared mental model (2–10 lines) at the top of `review.md` under
 `## Context model` — the human reads this first.
 
 ## Phase 4 — Diff review
 
-`gh pr diff <N>` (or `git diff origin/<base>...HEAD` inside the worktree — the
-checkout is detached, so use the remote base, not a bare local ref) — review hunk
+`gh pr diff <N> --repo <owner>/<repo>` (or `git diff <base-remote>/<base>...HEAD` inside the checkout — use
+the remote base, not a bare local ref) — review hunk
 by hunk against the context model. For every problem, record a finding (format
 below). Severity taxonomy:
 
@@ -218,15 +231,16 @@ confusion you missed or got wrong — **including findings of yours that don't
 survive scrutiny** (delete those; a list full of false positives is worse than a
 short true one). Record — do not fix.
 
-## Phase 7 — Second-model consult (propose-only, optional)
+## Phase 7 — Second-model consult (deep only, propose-only)
 
 Check for an independent consultant CLI: `which gemini codex claude`. **Prefer a
 consultant from a different model family than the one you are running as** — a
-second opinion from the same family is worth less. If you can't tell which family
-you are, **prefer `gemini`.** If one exists:
+second opinion from the same family is worth less. Run this by default only for
+**deep** reviews, or when the human asks for a second opinion. If you can't tell
+which family you are, prefer `gemini`. If one exists and the depth gate allows it:
 
 - Build a consult pack: PR title/body, your context model, the full diff, and
-  2–4 open questions from `findings.md`.
+  2–4 open questions from `review.md`.
 - Invoke it non-interactively, e.g.
   `gemini -p "<consult prompt>" < consult-pack.md` (or `codex exec`), with a
   prompt that states verbatim: **"You are consulting on a code review. Do NOT
@@ -238,9 +252,9 @@ you are, **prefer `gemini`.** If one exists:
   findings; verify anything that contradicts your reading before recording. If no
   consultant CLI exists, skip and note it.
 
-## Phase 8 — Write findings.md + meta.json
+## Phase 8 — Write review.md + meta.json
 
-Append to `~/.squint/<owner>/<repo>/pr-<N>/findings.md`. **Prefer a native
+Append to `<squint-state>/<owner>/<repo>/pr-<N>/review.md`. **Prefer a native
 file-write tool over shell heredocs.** Harness destructive-command guards can
 FALSE-POSITIVE on finding *prose* that quotes strings like `git restore` or
 `rm -rf`, and report-file heuristics may resist writing. If a write is blocked,
@@ -250,10 +264,11 @@ concluding writes are forbidden.
 Entry format:
 
 ```markdown
-## F<id> — [<severity>] <one-line title>
+## F<id> - [<severity>] <one-line title>
 - anchor: src/cache/flush.ts:142 @ a1b2c3d
 - state: open
 - source: local-r1 | gemini-r1 | copilot-cloud | prior-review
+- diff: right line 142 | left line 88 | body-only
 - evidence: <quoted excerpt + 1–3 lines of why this is a problem>
 - proposed fix: <concrete suggestion; small unified diff in a fenced block when useful>
 - round: 1
@@ -265,7 +280,9 @@ note a short `## Verification strategy` block and turn missing verification into
 a finding only when it protects a real risk — that lens is rotated in fully by
 `squint-deeper`.
 
-Set `meta.json` to `"rounds": 1`, `"status": "in-review"`.
+Set `meta.json` to `"status": "in-review"` and append a round entry. Keep
+`review.md` light enough for a human to read in an editor; IDs exist to make
+walkthrough easier, not to turn the scratch file into a tracker.
 
 ## Report to the human
 

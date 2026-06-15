@@ -15,17 +15,18 @@ triggers:
 This is the **ONLY** skill in the squint suite that may post to GitHub, and only
 at the very end, only after the human explicitly approves the rendered draft.
 Until that moment the same hard rules as every other squint skill apply:
-**read-only on the repo, writes only under `~/.squint/`.** This skill never
+**read-only on the repo, writes only outside the repo under the squint state
+dir.** This skill never
 edits repo code. Tracker/CI tooling is used only if the repo names it AND it
 exists locally.
 
 ## Input
 
 The PR in conversation, or the most recent
-`~/.squint/<owner>/<repo>/pr-<N>/meta.json` with `status: in-review` (confirm in
-one line). State lives at `~/.squint/<owner>/<repo>/pr-<N>/`:
-`worktree/`, `findings.md`, `meta.json`
-(`{pr, url, head_sha, base, rounds, status}`).
+`<squint-state>/<owner>/<repo>/pr-<N>/meta.json` with `status: in-review`
+(confirm in one line). State lives outside the repo: `review.md`, `meta.json`,
+optional `checkout/`, optional `logs/`. Load `references/state-and-anchors.md`
+if you need exact schema or anchor rules.
 
 ## Step 1 — Drift check (fail closed)
 
@@ -58,11 +59,14 @@ proposed fix: …
 
 - **accept** → keep as-is, mark accepted.
 - **edit** → take the human's wording or severity change, then mark accepted.
-- **drop** → mark dropped with a one-line reason in `findings.md`.
+- **drop** → mark dropped with a one-line reason in `review.md`.
 
 Batch the trivial: if there are many nits, offer "accept all nits / drop all
 nits / go one by one". Respect the human's pace — if they say "accept everything
 except F3", do exactly that.
+
+If the human wants the findings in front of them, show the state path and offer
+to open `review.md` in their editor. Do not require an editor workflow.
 
 Match the reviewer's voice when finalizing comment text — the posted words
 should sound like the human, not like a bot. Mine that voice from how they
@@ -74,11 +78,11 @@ reviews; never invent boilerplate praise.
 Build the complete review **locally** and show ALL of it before anything is
 sent. Nothing leaves the machine in this step.
 
-- **Inline comments**: one per accepted finding that has a diff anchor —
+- **Inline comments**: one per accepted finding that has a valid diff anchor —
   finding text + proposed fix, anchored to `file:line` in the head revision.
   Render the fix as a ```suggestion block only when it's a drop-in replacement
-  for the anchored lines; otherwise as a fenced diff. Findings on files NOT in
-  the diff can't be inline-anchored by GitHub — fold those into the review body.
+  for the anchored lines; otherwise as a fenced diff. Findings marked
+  `diff: body-only` or on files not in the PR diff must go in the review body.
 - **Review body**: a short summary in the human's voice — what was reviewed, the
   main themes, genuine appreciation where due (no filler).
 - **Overall verdict** with a one-line rationale:
@@ -100,29 +104,21 @@ there's any ambiguity, ask again. No approval, no API call.
 
 ## Step 5 — Post as ONE batched review (single call)
 
-Build one JSON payload and post it in a **single** `gh api` call — one call =
-one atomic review, never a comment-per-call drip:
+Build one JSON payload in the squint state dir and post it in a **single**
+`gh api` call — one call = one atomic review, never a comment-per-call drip.
+Prefer a native JSON writer/tool over shell heredocs so multiline code blocks,
+quotes, and suggestions are escaped correctly.
 
 ```bash
-cat > ~/.squint/<owner>/<repo>/pr-<N>/review.json <<'EOF'
-{
-  "commit_id": "<head_sha from meta.json>",
-  "event": "REQUEST_CHANGES",
-  "body": "<review body>",
-  "comments": [
-    {"path": "src/cache/flush.ts", "line": 142, "side": "RIGHT", "body": "<finding text>"}
-  ]
-}
-EOF
 gh api "repos/<owner>/<repo>/pulls/<N>/reviews" \
-  --method POST --input ~/.squint/<owner>/<repo>/pr-<N>/review.json
+  --method POST --input <squint-state>/<owner>/<repo>/pr-<N>/draft-review.json
 ```
 
 Notes: `line` is the line in the head revision; use `start_line` + `start_side`
 for multi-line comments. GitHub rejects comments on files not in the diff —
 those must live in the body (Step 3 already folded them in).
 
-**On failure:** report the exact API error, leave `meta.json` and `findings.md`
+**On failure:** report the exact API error, leave `meta.json` and `review.md`
 untouched, and let the human decide. Never silently retry with a mutated
 payload.
 
@@ -133,11 +129,11 @@ review id (and URL). Show the review URL to the human.
 
 ## Step 7 — Offer to tear down the scratch
 
-GitHub is now the record — the per-PR scratch under `~/.squint/` is disposable
+GitHub is now the record — the per-PR scratch under the squint state dir is disposable
 and nothing should accumulate. **Offer** (don't force) to remove it:
 
 ```bash
-rm -rf ~/.squint/<owner>/<repo>/pr-<N>/
+rm -rf <squint-state>/<owner>/<repo>/pr-<N>/
 ```
 
 If the human wants to keep it (e.g. follow-up findings still to file as issues),
