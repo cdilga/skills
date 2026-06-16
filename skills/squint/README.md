@@ -1,9 +1,16 @@
 # squint — PR review skills
 
-Seven skills for gated PR review: start from a PR URL, trace changed code beyond
+Skills for gated PR review: start from a PR URL, trace changed code beyond
 the diff, loop with fresh lenses until dry, then draft and post only after
 explicit approval. Built for Copilot CLI and OpenCode; also works in any harness
 that reads `~/.agents/skills`.
+
+There are two lanes. The **full lane** (`squint-kickoff` → `squint-deeper` →
+`squint-walkthrough`, plus the cloud/panel/onboard skills) manages disposable
+per-PR state and can post a batched review. The **simple lane** is three
+ultra-lean, human-oriented skills — `squint-simple-kickoff`,
+`squint-simple-fresh-eyes`, `squint-simple-peer-review` — that just surface a
+findings list for a human reviewer and never touch code or GitHub.
 
 Core posture:
 
@@ -79,6 +86,24 @@ copilot   # or: opencode
 | `squint-panel` | *Optional* deep adversarial path — a panel of different model families (Gemini / OpenAI / Opus, overridable), distinct lenses, cross-examined |
 | `squint-onboard` | Manual repo study that proposes lightweight repo artifacts — see below |
 | `squint-onboard-cloud` | Cloud-specific onboarding for GitHub's Review button via `.github/skills/code-review/SKILL.md` |
+| `squint-simple-kickoff` | *Simple lane.* Get oriented on a PR and read the diff with fresh eyes; understands repo + data flow. Findings only. |
+| `squint-simple-fresh-eyes` | *Simple lane.* Explore and trace the flows the PR touches, then a fresh-eyes bug pass. Findings only. |
+| `squint-simple-peer-review` | *Simple lane.* Deep, wide peer-review of a colleague's change — root causes, security, reliability. Findings only. |
+
+## Simple lane
+
+Three lean skills modelled on dicklesworthstone's review flow, adapted for
+**human** review: they never modify code, never post, and keep findings anchored
+to what the PR touches. Run them in order, or pick whichever pass you want.
+
+```
+> squint-simple-kickoff       # understand the PR + repo, fresh-eyes read of the diff
+> squint-simple-fresh-eyes    # explore and trace the flows, then a fresh-eyes bug pass
+> squint-simple-peer-review   # deep, wide colleague-style pass; root causes
+```
+
+Each one hands back a short, ranked findings list with `file:line` anchors for a
+human to act on. No per-PR scratch, no state machine — that's the full lane.
 
 ## Onboarding
 
