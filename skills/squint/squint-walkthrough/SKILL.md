@@ -1,6 +1,6 @@
 ---
 name: squint-walkthrough
-description: Finalize and post a squint PR review. Step through the findings one at a time in severity order (accept / edit / drop), render the FULL review draft locally — inline comments anchored to file:line plus an overall verdict — show it, and ONLY on explicit human approval post it to GitHub as one batched review. This is the ONLY skill in the squint suite allowed to post; every other skill is read-only. Refuses to post if the PR head moved since the findings were written (run squint-deeper to reconcile first). Use when the human says "post my review", "walk me through the review", "draft my review", or "step through the findings".
+description: This skill should be used when the user asks to walk through, edit, draft, approve, or post accumulated squint findings as one GitHub PR review.
 triggers:
   - squint-walkthrough
   - step through the findings
@@ -13,7 +13,7 @@ triggers:
 # squint-walkthrough — triage, draft, approve, post
 
 This is the **ONLY** skill in the squint suite that may post to GitHub, and only
-at the very end, only after the human explicitly approves the rendered draft.
+at the very end, only after the user explicitly approves the rendered draft.
 Until that moment the same hard rules as every other squint skill apply:
 **read-only on the repo, writes only outside the repo under the squint state
 dir.** This skill never
@@ -36,7 +36,7 @@ Compare `meta.json` `head_sha` to the live PR head:
 gh pr view <N> --repo <owner>/<repo> --json headRefOid -q .headRefOid
 ```
 
-If it differs from `head_sha`: **refuse to post.** Tell the human plainly that
+If it differs from `head_sha`: **refuse to post.** Tell the user plainly that
 the PR has moved since the findings were written and that they must run a
 `squint-deeper` reconciliation round first — it re-anchors every open finding to
 the new head — then come back. A review built on a stale tree is worse than a
@@ -58,18 +58,18 @@ proposed fix: …
 ```
 
 - **accept** → keep as-is, mark accepted.
-- **edit** → take the human's wording or severity change, then mark accepted.
+- **edit** → take the user's wording or severity change, then mark accepted.
 - **drop** → mark dropped with a one-line reason in `review.md`.
 
 Batch the trivial: if there are many nits, offer "accept all nits / drop all
-nits / go one by one". Respect the human's pace — if they say "accept everything
+nits / go one by one". Respect the user's pace — if they say "accept everything
 except F3", do exactly that.
 
-If the human wants the findings in front of them, show the state path and offer
+If the user wants the findings in front of them, show the state path and offer
 to open `review.md` in their editor. Do not require an editor workflow.
 
 Match the reviewer's voice when finalizing comment text — the posted words
-should sound like the human, not like a bot. Mine that voice from how they
+should sound like the reviewer, not like a bot. Mine that voice from how they
 phrase things in this session and, if available, from their prior posted GitHub
 reviews; never invent boilerplate praise.
 
@@ -83,7 +83,7 @@ sent. Nothing leaves the machine in this step.
   Render the fix as a ```suggestion block only when it's a drop-in replacement
   for the anchored lines; otherwise as a fenced diff. Findings marked
   `diff: body-only` or on files not in the PR diff must go in the review body.
-- **Review body**: a short summary in the human's voice — what was reviewed, the
+- **Review body**: a short summary in the reviewer's voice — what was reviewed, the
   main themes, genuine appreciation where due (no filler).
 - **Overall verdict** with a one-line rationale:
   - any accepted blocker/major → propose **REQUEST_CHANGES**
@@ -119,13 +119,13 @@ for multi-line comments. GitHub rejects comments on files not in the diff —
 those must live in the body (Step 3 already folded them in).
 
 **On failure:** report the exact API error, leave `meta.json` and `review.md`
-untouched, and let the human decide. Never silently retry with a mutated
+untouched, and let the user decide. Never silently retry with a mutated
 payload.
 
 ## Step 6 — Record the post
 
 On success, update `meta.json`: set `status: posted` and record the returned
-review id (and URL). Show the review URL to the human.
+review id (and URL). Show the review URL to the user.
 
 ## Step 7 — Offer to tear down the scratch
 
@@ -136,6 +136,6 @@ and nothing should accumulate. **Offer** (don't force) to remove it:
 rm -rf <squint-state>/<owner>/<repo>/pr-<N>/
 ```
 
-If the human wants to keep it (e.g. follow-up findings still to file as issues),
+If the user wants to keep it (e.g. follow-up findings still to file as issues),
 leave it. But the default suggestion after a clean post is to tear it down, so
 no stale state lingers.

@@ -2,7 +2,7 @@
 
 **Status:** design, updated 2026-06-15.
 
-`squint` is a lightweight PR-review suite for a trusted human reviewer. The
+`squint` is a lightweight PR-review suite for a trusted reviewer. The
 default posture is cheap and forgiving: review the PR, keep scratch outside the
 repo, and escalate only when the user or repo context asks for more depth.
 
@@ -13,9 +13,10 @@ repo, and escalate only when the user or repo context asks for more depth.
 | `squint-kickoff` | First PR review round. Chooses a safe checkout strategy and a review depth. |
 | `squint-deeper` | Additional lens-driven rounds, including verification. |
 | `squint-walkthrough` | Step through findings, draft, approve, and post one batched review. |
-| `squint-cloud` | Explicitly gated GitHub Copilot code-review / cloud-agent lane. |
+| `squint-cloud` | Request/harvest bridge for GitHub-hosted review signal. |
 | `squint-panel` | Opt-in expensive adversarial multi-model review. |
 | `squint-onboard` | Manual repo study that can propose AGENTS/docs and project shims. |
+| `squint-onboard-cloud` | Cloud-specific onboarding for GitHub Review-button guidance. |
 
 ## Depth gates
 
@@ -58,7 +59,7 @@ Review scratch lives outside the repo by default:
   checkout/
 ```
 
-`review.md` is human-facing and light touch. `meta.json` tracks machine state:
+`review.md` is reviewer-facing and light touch. `meta.json` tracks machine state:
 head/base SHAs, depth, checkout strategy, rounds, lenses spent, dry streak, and
 cloud metadata. Exact schema lives in `references/state-and-anchors.md`.
 
@@ -98,9 +99,17 @@ Use GitHub paths for GitHub surfaces:
 - Copilot cloud custom agents: `.github/agents/*.agent.md`
 - Copilot CLI / OpenCode project skills: `.agents/skills/<project>-squint-*`
 
+GitHub-invoked artifacts are not local squint shims: they should not mention
+`review.md`, `meta.json`, local checkout strategy, or walkthrough mechanics.
+They guide GitHub's native review/comment/task output; local squint harvests,
+dedups, ranks, and verifies later.
+
+`squint-onboard-cloud` owns `.github/skills/code-review/SKILL.md` for the
+GitHub Review button. `squint-cloud` only requests/harvests review signal.
+
 Cloud agent is a code-generating surface by design. Treat deep cloud review as
-expensive and not structurally read-only; gate it explicitly and check for
-commits/branches/PRs during harvest.
+not structurally read-only; gate it explicitly and check for commits/branches/PRs
+during harvest.
 
 ## Posting boundary
 

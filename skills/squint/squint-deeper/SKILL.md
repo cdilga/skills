@@ -1,6 +1,6 @@
 ---
 name: squint-deeper
-description: Run another finding-hunt round on a PR already started with squint-kickoff — reconcile if the head moved, rotate to a fresh lens (including a verification lens covering parameter tables, properties, fuzzing, metamorphic/differential checks, fault injection, and mutation-style ideas), do random deep inspection of an untouched subsystem, a fresh-eyes pass, and an optional propose-only consult — appending only NEW findings to per-PR scratch. Loop until dry. Read-only on the repo; never edits code, never posts. Accepts optional steering.
+description: This skill should be used when an in-progress squint PR review needs another pass, a specific review lens, head-move reconciliation, verification, or more findings.
 triggers:
   - squint-deeper
   - go deeper on the review
@@ -12,9 +12,10 @@ triggers:
 
 # squint-deeper — loop for more findings
 
-Another review round on the PR you started with `squint-kickoff`. You are
-the reviewer's research assistant; the human stays the reviewer of record. Your
-output is appended scratch findings, never code and never a posted review.
+Another review round on the PR started with `squint-kickoff`. Act as the
+reviewer's research assistant; the user/reviewer remains reviewer of record.
+Output appended scratch findings. Implement fixes or GitHub suggestions only
+when the user asks.
 
 ## Hard rules (non-negotiable, for you AND any model you consult)
 
@@ -22,8 +23,8 @@ output is appended scratch findings, never code and never a posted review.
    commit/push/reset`, no `gh` mutation (`gh pr review`, `gh pr comment`, `gh pr
    edit`, …). The only writes allowed are outside the repo under the squint
    state dir.
-2. When something looks broken, you **record a finding with a proposed fix** —
-   you do not fix it.
+2. When something looks broken, record a finding and proposed fix. Implement or
+   generate GitHub suggestions only when the user explicitly asks.
 3. **Only `squint-walkthrough` posts.** This skill never posts.
 4. **Tracker/CI tooling only if the repo names it AND it exists locally.** Don't
    reach for a tool the repo hasn't adopted; degrade gracefully and note the gap.
@@ -39,7 +40,7 @@ reason to skip drift checks.
 
 If no PR is obvious from the conversation, find the most recent
 `<squint-state>/*/*/pr-*/meta.json` with `"status": "in-review"` and confirm the PR
-with the human in one line before hunting. If NONE is found, ask the human for a
+with the user in one line before hunting. If NONE is found, ask the user for a
 PR URL — they probably want to run `squint-kickoff` first.
 
 ## Per-PR state
@@ -47,7 +48,7 @@ PR URL — they probably want to run `squint-kickoff` first.
 State lives outside the repo under `<squint-state>/<owner>/<repo>/pr-<N>/`.
 Load `references/state-and-anchors.md` if exact fields or anchors matter.
 
-- `review.md` — human-facing scratch, **append-only except state changes**.
+- `review.md` — reviewer-facing scratch, **append-only except state changes**.
 - `meta.json` — compact machine state.
 - optional `checkout/` and `logs/`.
 
@@ -71,7 +72,7 @@ Check `gh pr view <N> --repo <owner>/<repo> --json headRefOid`. If the head SHA 
   resolved`; the code it referenced is gone -> mark `state: stale`; no longer
   inline-anchorable -> set `diff: body-only`.
 - Update `head_sha` in `meta.json`.
-- Tell the human what changed in one or two lines before continuing.
+- Report what changed in one or two lines before continuing.
 
 ### 3. Pick this round's lens
 
@@ -96,7 +97,7 @@ Independently of the lens, pick ONE changed file or subsystem you have NOT yet
 traced end-to-end. In **fast** mode, keep this short. In **standard** mode, trace
 the main callers/callees and nearby tests. In **deep** mode, spawn subagents for
 separable subsystems if available and worth the cost; otherwise do the same work
-serially. Do not run `squint-panel` from here unless the human explicitly asks
+serially. Do not run `squint-panel` from here unless the user explicitly asks
 for the adversarial/multi-agent path.
 
 Subagents are read-only and must comply with ALL rules in the repo's
@@ -122,7 +123,7 @@ round summary. Separate "I ran this" from "I recommend this."
 ### 7. Consult (propose-only, optional)
 
 Session-history and consultant tooling is a **capability, not a specific tool**.
-If depth is **deep** or the human asks for another model, and a consultant CLI
+If depth is **deep** or the user asks for another model, and a consultant CLI
 exists locally (e.g. `gemini`, `codex`, `claude`), send it the diff plus this
 round's lens and open questions under the same verbatim guard as kickoff. When
 the lens is verification, ask for **test ideas with oracles**, not just "more
@@ -149,7 +150,7 @@ is still correct — retry via an alternate write mechanism.
 
 ## Report
 
-Tell the human:
+Report:
 
 - How many NEW findings this round, by severity.
 - Which lens this round used and which subsystem got the random deep inspection.

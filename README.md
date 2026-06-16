@@ -42,8 +42,8 @@ Or add via **Settings → Plugins** and search for `cdilga/skills`.
 
 ## Skills
 
-### reviewing (squint suite)
-Six skills for PR reviews where you stay the reviewer of record — `squint-kickoff` (paste a PR link, choose a safe checkout strategy, and run fast/standard/deep review based on steering), `squint-deeper` (iterate with a fresh lens, including verification), `squint-walkthrough` (step through findings, then post one batched review only after explicit approval), `squint-cloud` (explicitly gated GitHub Copilot code-review/cloud-agent lane), `squint-panel` (opt-in expensive adversarial multi-model path), and `squint-onboard` (manual repo study that can produce lean `AGENTS.md`/docs and project-scoped `<project>-squint-*` shims). Scratch lives outside the repo by default; nothing edits code, nothing posts without you. See [`skills/reviewing/README.md`](skills/reviewing/README.md) for the working guide and quickstarts.
+### squint
+Seven skills for PR reviews where the requester stays reviewer of record — `squint-kickoff`, `squint-deeper`, `squint-walkthrough`, `squint-cloud`, `squint-panel`, `squint-onboard`, and `squint-onboard-cloud`. Scratch lives outside the repo by default; posting still requires explicit approval. See [`skills/squint/README.md`](skills/squint/README.md) for the working guide and quickstarts.
 
 ### cass
 Search all past AI coding agent histories (Claude Code, Cursor, Codex, OpenCode, etc.) using the [`cass`](https://github.com/Dicklesworthstone/coding_agent_session_search) CLI. Find how you solved something before, mine patterns, or look up historical context across all your conversations.
@@ -69,16 +69,13 @@ skills/
 ```yaml
 ---
 name: my-skill
-description: One sentence — when should an agent use this?
-triggers:
-  - keyword agents will think when they need this
-  - another trigger phrase
+description: This skill should be used when the user asks to do a specific task this skill handles.
 ---
 
 # Instructions for the agent...
 ```
 
-The `description` and `triggers` fields are what surface the skill to agents — make them reflect the *problem*, not the tool name.
+The `name` and `description` fields are the portable trigger metadata. Keep descriptions concise, concrete, and phrased around the user request that should load the skill.
 
 PRs welcome.
 

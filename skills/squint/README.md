@@ -1,30 +1,26 @@
-# squint — a PR review suite for a trusted human reviewer
+# squint — PR review skills
 
-Six skills that turn "someone pinged me to review their PR" into a gated,
-propose-only review where **you** stay the reviewer of record. Built
-for Copilot CLI and OpenCode (also works in Claude Code and any harness that reads
-`~/.agents/skills`).
+Seven skills for gated PR review: start from a PR URL, trace changed code beyond
+the diff, loop with fresh lenses until dry, then draft and post only after
+explicit approval. Built for Copilot CLI and OpenCode; also works in any harness
+that reads `~/.agents/skills`.
 
-The method is adapted from Dicklesworthstone's review doctrine (study the repo's
-agent instructions first → deep exploration tracing execution flows, not just the
-diff → cast a wider net → adversarial "fresh eyes" passes → loop until dry), with
-two deliberate changes:
+Core posture:
 
-1. **Nothing edits code and nothing posts without you.** Consultant models (Gemini,
-   Codex, the cloud coding agent) only ever *propose* fixes as text. Findings
-   accumulate as scratch; you step through them one by one and the review is posted
-   only after you say so.
-2. **No bespoke tooling, no background jobs.** Plain `gh`, `git`, optional
-   worktrees, and the filesystem. Per-PR state is disposable and lives outside
-   the repo by default — once the review is posted, GitHub is the
-   record. There is no scheduled maintenance: **you are the scheduler.**
+- Analysis is read-only by default. Implement fixes, produce GitHub suggestions,
+  or mutate PR state only when the user explicitly asks.
+- Prefer a short, high-confidence findings list ordered by impact over volume.
+- Use the repo's actual workflow and tools. Worktrees, cloud agents, local
+  validation, and panel review are gated choices, not mandatory defaults.
+- Scratch is disposable and lives outside the repo by default. After posting,
+  GitHub is the record.
 
 ## The flow
 
 ```
-Teams ping: "can you review my PR?" → copy the link
+Review request arrives with a PR link
 │
-▼ paste into your harness (Copilot CLI / OpenCode)
+▼ paste into the agent harness
 squint-onboard for org/repo        # optional, once — repo docs and/or review tailoring
 squint-kickoff https://github.com/org/repo/pull/123 [fast|standard|deep]
 │   boot context (AGENTS.md / repo docs / project shim, else generics)
@@ -42,7 +38,7 @@ squint-deeper focus on the migration and rollback path
 ▼
 squint-walkthrough
 │   step through findings: accept / edit / drop, one at a time
-│   → renders the full draft → waits for your explicit "post it"
+│   → renders the full draft → waits for explicit "post it"
 │   → posts ONE batched review via gh, then offers to clear the scratch
 ```
 
@@ -62,27 +58,29 @@ copilot   # or: opencode
 > squint-walkthrough       # step through, then post
 ```
 
-## Quickstart — cloud lane (Copilot coding agent, remotely hosted)
+## Quickstart — cloud lane (GitHub-hosted review)
 
 ```bash
-> squint-cloud setup for org/repo        # one-time: custom reviewer agent + shared doctrine in .github/
-> squint-cloud review PR 123             # kick a propose-only deep review session in the cloud
+> onboard-cloud for org/repo             # one-time: GitHub Review-button guidance
+> squint-cloud request PR 123            # optional: request native Copilot review
+# GitHub invokes code review / agent tasks through its own UI, rules, or task surfaces
 > squint-cloud harvest PR 123            # pull its findings into the local scratch
-> squint-walkthrough                     # your verdict still happens locally
+> squint-walkthrough                     # reviewer verdict still happens locally
 ```
 
 ## What's in the box
 
 | Skill | When |
 |---|---|
-| `squint-kickoff` | You have a PR link and want the full first-round deep review (works cold, no onboarding required) |
+| `squint-kickoff` | Start review from a PR link; works cold, no onboarding required |
 | `squint-deeper` | Loop for more findings, optionally steered ("focus on X"); rotates lenses including a verification lens |
 | `squint-walkthrough` | Step through the findings, then draft + post the review. **The only skill that posts.** |
-| `squint-cloud` | Set up / run / harvest reviews on the GitHub Copilot coding agent |
+| `squint-cloud` | Request Copilot review and harvest GitHub findings into local squint scratch |
 | `squint-panel` | *Optional* deep adversarial path — a panel of different model families (Gemini / OpenAI / Opus, overridable), distinct lenses, cross-examined |
 | `squint-onboard` | Manual repo study that proposes lightweight repo artifacts — see below |
+| `squint-onboard-cloud` | Cloud-specific onboarding for GitHub's Review button via `.github/skills/code-review/SKILL.md` |
 
-## Onboarding — one study, lightweight artifacts
+## Onboarding
 
 `squint-onboard` mines source history, work history, design docs, prior
 agent/session history, architecture, and review culture as deeply as the request
@@ -96,14 +94,19 @@ warrants. It can then propose:
   review lenses without copying the generic procedure.
 
 Which it proposes is the loading agent's judgement, with a bias toward the least
-invasive useful artifact. Session-history mining is tool-agnostic — it uses
-whatever prior-session search you have, and degrades gracefully if you have none.
+invasive useful artifact. Session-history mining is tool-agnostic and skipped
+when no suitable local capability exists.
+
+`squint-onboard-cloud` is the cloud-specific path. It proposes GitHub-native
+review artifacts for the Review button, especially
+`.github/skills/code-review/SKILL.md`, without importing local squint scratch or
+walkthrough mechanics into GitHub's reviewer.
 
 ## State — disposable
 
 ```
 <squint-state>/<owner>/<repo>/pr-<N>/
-  review.md      # human-facing scratch, outside the repo
+  review.md      # reviewer-facing scratch, outside the repo
   meta.json      # head SHA, depth, checkout strategy, round state
   logs/          # optional local validation logs
   checkout/      # optional, only when squint created one
@@ -118,14 +121,16 @@ archives it; re-run `squint-onboard` by hand when a repo's context drifts.
 Use the right path for each surface. Project CLI skills live under
 `.agents/skills/<project>-squint-*`. GitHub.com Copilot code review should use
 `.github/skills/code-review/SKILL.md`; cloud custom agents use
-`.github/agents/*.agent.md`. Keep critical rules in **root** `AGENTS.md`.
+`.github/agents/*.agent.md`. GitHub-invoked artifacts stay cloud-native and do
+not mention local squint scratch/state/walkthrough mechanics. Keep critical
+rules in **root** `AGENTS.md`.
 
 ## House rules (every skill enforces these)
 
 - The review agent and all consultants are **read-only on the repo** during
   analysis: no file edits, no commits, no pushes, no `gh` mutations.
 - Posting happens **only** in `squint-walkthrough`, only after the rendered draft is
-  shown and you explicitly approve, and only as one batched review.
+  shown and explicitly approved, and only as one batched review.
 - If the PR head moved since the findings were written, posting is refused until a
   `squint-deeper` reconciliation round runs.
 - Tracker / CI tooling is never assumed: skills use it only if the repo's own

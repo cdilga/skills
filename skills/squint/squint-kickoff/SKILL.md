@@ -1,6 +1,6 @@
 ---
 name: squint-kickoff
-description: First review round on a GitHub PR from just its URL — choose a safe checkout strategy (current folder, existing clone, worktree only when requested/preferred, or scratch clone), apply a fast/standard/deep/adversarial depth gate, trace execution flows, optionally run safe local validation, and write disposable outside-repo review scratch. You stay the reviewer of record. Never edits code, never posts. Hand off to squint-deeper and squint-walkthrough.
+description: This skill should be used when the user provides a GitHub PR URL and asks to start a squint review, review a PR, or run a fast/standard/deep first pass.
 triggers:
   - squint-kickoff
   - squint this PR
@@ -13,10 +13,11 @@ triggers:
 
 # squint-kickoff — first review round on a PR
 
-You are a careful senior reviewer's research assistant. The **human is the
-reviewer of record**. Your output is a set of **ranked, anchored findings** —
-never code changes, never GitHub posts. Keep the workflow light by default and
-escalate only when the user or repo context asks for more depth.
+Act as a careful senior reviewer's research assistant. The user/reviewer remains
+reviewer of record. Output a ranked, anchored findings list. Analysis is
+read-only by default; implement fixes or GitHub suggestions only when the user
+asks. Keep the workflow light by default and escalate only when the user or repo
+context asks for more depth.
 
 ## House rules (non-negotiable, for you AND any model you consult)
 
@@ -28,8 +29,8 @@ escalate only when the user or repo context asks for more depth.
    deliberate GitHub-mutation exceptions live in *other* skills —
    `squint-walkthrough` (posts the final verdict) and `squint-cloud` (explicit,
    shown-before-run cloud-orchestration requests). Kickoff itself still never mutates.
-2. When something looks broken you **record a finding with a proposed fix** —
-   you do not fix it.
+2. When something looks broken, record a finding and proposed fix. Implement or
+   generate GitHub suggestions only when the user explicitly asks.
 3. **Tracker / CI tooling is used only if the repo's own instructions name it
    AND it exists locally** (`which …`). Never assume such tools. The repo's
    instructions are the source of truth for what they are and how to call them.
@@ -38,7 +39,7 @@ escalate only when the user or repo context asks for more depth.
 ## Input
 
 A PR URL like `https://github.com/<owner>/<repo>/pull/<N>` (or `owner/repo#N`).
-Anything after the link is **steering** — extra emphasis from the human (e.g.
+Anything after the link is **steering** — extra emphasis from the user (e.g.
 "they're worried about the migration"). Honor steering as an additional lens,
 never as a reason to skip phases.
 
@@ -54,7 +55,7 @@ time. Ask only if the difference matters.
 - **deep** — broader local exploration, optional subagents if the harness supports
   them, targeted local validation, and at most one propose-only consultant.
 - **adversarial / panel / multi-agent** — do not start from kickoff by default.
-  Tell the human this is the expensive path and hand off to `squint-panel` only
+  Report that this is the expensive path and hand off to `squint-panel` only
   when explicitly requested or clearly warranted.
 
 If the user says "test locally", "run it", or "boot the app", load
@@ -69,7 +70,7 @@ Keep all scratch outside the target repository by default. Use
 
 ```
 <squint-state>/<owner>/<repo>/pr-<N>/
-├── review.md      # human-facing scratch
+├── review.md      # reviewer-facing scratch
 ├── meta.json      # compact machine state
 ├── logs/          # optional validation logs
 └── checkout/      # optional, only if squint created one
@@ -189,7 +190,7 @@ only if the harness supports them and the extra cost is justified. If subagents
 are unavailable, do the same work serially and say so.
 
 Write a short shared mental model (2–10 lines) at the top of `review.md` under
-`## Context model` — the human reads this first.
+`## Context model` — the reviewer reads this first.
 
 ## Phase 4 — Diff review
 
@@ -236,7 +237,7 @@ short true one). Record — do not fix.
 Check for an independent consultant CLI: `which gemini codex claude`. **Prefer a
 consultant from a different model family than the one you are running as** — a
 second opinion from the same family is worth less. Run this by default only for
-**deep** reviews, or when the human asks for a second opinion. If you can't tell
+**deep** reviews, or when the user asks for a second opinion. If you can't tell
 which family you are, prefer `gemini`. If one exists and the depth gate allows it:
 
 - Build a consult pack: PR title/body, your context model, the full diff, and
@@ -284,12 +285,12 @@ Set `meta.json` to `"status": "in-review"` and append a round entry. Keep
 `review.md` light enough for a human to read in an editor; IDs exist to make
 walkthrough easier, not to turn the scratch file into a tracker.
 
-## Report to the human
+## Report
 
-Aim for **plenty of ranked, reviewable artifacts**. Give the report in this
-order: a one-paragraph verdict *feel* (NOT a verdict — that's the human's), the
-context model, findings ranked blocker→question with anchors and proposed fixes,
-what you checked and found clean, and what you did NOT get to. Close with:
+Prefer a short list of high-quality findings over volume. Order by impact and
+confidence: real blockers/majors first, questions only when they affect the
+merge decision. Include anchors, evidence, proposed fixes, what you checked, and
+what remains uncertain. Close with:
 
 > Loop with `squint-deeper` (optionally with steering) to rotate new lenses
 > until dry, then `squint-walkthrough` to step through findings and post once.

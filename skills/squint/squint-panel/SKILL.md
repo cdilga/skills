@@ -1,6 +1,6 @@
 ---
 name: squint-panel
-description: Explicitly opt-in deep adversarial review path — convene a panel of DIFFERENT model families (for example Gemini, latest OpenAI high-effort, Opus) as read-only, propose-only reviewers of an in-progress squint review, each with a distinct lens, then cross-examine their findings and fold survivors into local scratch. Expensive; use only when requested or clearly warranted. Never edits code, never posts. Roster is overridable.
+description: This skill should be used when the user explicitly asks for adversarial, multi-model, panel, second-opinion, or high-stakes review of an in-progress squint PR.
 triggers:
   - squint-panel
   - run an adversarial panel on this PR
@@ -17,9 +17,9 @@ An **optional, expensive escalation** of the single second-model consult in
 `squint-kickoff` / `squint-deeper`. Where that consult asks one other model for
 test ideas, this convenes a **panel of different models**, gives each a distinct
 adversarial lens, then has them **cross-examine each other's findings** before any
-survive into the scratch. Use it when the human explicitly asks for
+survive into the scratch. Use it when the user explicitly asks for
 adversarial/multi-agent review, or when a PR is high-stakes enough to justify
-asking first. Skip it otherwise. The human verdict still happens in
+asking first. Skip it otherwise. The reviewer verdict still happens in
 `squint-walkthrough`.
 
 This is not on the critical path: `kickoff → deeper → walkthrough` works without it.
@@ -40,7 +40,7 @@ Run it after at least one `squint-kickoff` round, when you want depth.
 ## 0. Locate the review
 
 Find the in-progress scratch: the most recent `<squint-state>/<owner>/<repo>/pr-<N>/` with
-`meta.json` `status: in-review` (or the PR the human names). You need its checkout,
+`meta.json` `status: in-review` (or the PR the user names). You need its checkout,
 its `review.md` (existing findings the panel will both extend and stress-test), and
 `meta.json` (`head_sha`, `base`, `behind_base`). If none exists, run `squint-kickoff`
 first.
@@ -106,7 +106,7 @@ You (the orchestrator) are the judge. A finding **survives** when its evidence h
 against the code and it is not refuted by a majority of the *other* panelists. Tag each
 survivor with a confidence (`panel-consensus` if multiple models converged,
 `panel-single` if only one stands by it after cross-exam). Drop the refuted ones, noting
-why in case the human wants them back.
+why in case the user wants them back.
 
 ## 4. Fold survivors into the scratch
 
@@ -122,7 +122,7 @@ write is blocked the path is still correct, retry via an alternate write mechani
 
 Report: which models actually ran (and any that were unavailable), the lens each took,
 how many findings each proposed, how many survived cross-examination, and the consensus
-blockers/majors. Then hand off to `squint-walkthrough` for the human verdict — the panel
+blockers/majors. Then hand off to `squint-walkthrough` for the reviewer verdict — the panel
 never posts.
 
 ## Overriding defaults

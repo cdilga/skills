@@ -12,11 +12,12 @@ and relevant.
   local validation plan and run it when safe.
 - Otherwise use judgment: run cheap targeted checks when they are likely to
   falsify a risky assumption; skip heavy, flaky, credentialed, destructive, or
-  environment-dependent checks and say why.
+  environment-dependent checks and say why. Favour correctness and data collection
+  while reducing cost.
 
 ## Safety
 
-- Never point review validation at production or shared live systems.
+- Never point review validation at production.
 - Prefer local fixtures, throwaway databases, temporary directories, and explicit
   test env vars.
 - Avoid commands that mutate tracked files. If a normal test command generates
@@ -24,7 +25,7 @@ and relevant.
 - For concurrent reviews, use unique ports and temp dirs; do not kill processes
   you did not start.
 - Record server PIDs, ports, and logs under the squint state dir. Clean up
-  processes you started before finishing unless the human asks to keep them.
+  processes you started before finishing unless the user asks to keep them.
 
 ## Useful validation
 

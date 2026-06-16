@@ -11,20 +11,20 @@ available root:
 1. `$SQUINT_HOME`
 2. `$XDG_STATE_HOME/squint`
 3. `~/.local/state/squint`
-4. existing legacy `~/.squint` if it already contains this PR
+4. gitignored or local only `.squint`
 
 Per-PR state:
 
 ```text
 <squint-state>/<owner>/<repo>/pr-<N>/
-  review.md           # human-facing scratch, light IDs, editable
+  review.md           # reviewer-facing scratch, light IDs, editable
   meta.json           # machine state, schema below
   draft-review.json   # only created by walkthrough before posting
   logs/               # optional local validation logs
   checkout/           # optional, only when squint created a worktree/scratch clone
 ```
 
-Never write review scratch into the target repo unless the human explicitly asks
+Don't write review scratch into the target repo and commit unless the user explicitly asks
 for a committed onboarding artifact.
 
 ## `meta.json` schema
