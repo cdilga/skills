@@ -42,8 +42,8 @@ Or add via **Settings → Plugins** and search for `cdilga/skills`.
 
 ## Skills
 
-### reviewing (suite)
-Five skills for running deep, multi-round, multi-model PR reviews where you stay the reviewer of record — `review-kickoff` (paste a PR link, get a findings ledger + ranked recommendations), `review-deeper` (loop for more findings until dry, with optional steering), `review-walkthrough` (step through findings, then post one batched review only after explicit approval), `review-onboard` (mine your gh review history into persistent per-repo notes), and `review-cloud` (run propose-only reviews on GitHub's hosted Copilot agents and harvest them into the same ledger). Consultant models (Gemini/Codex) only ever propose fixes — nothing edits code, nothing posts without you. See [`skills/reviewing/README.md`](skills/reviewing/README.md) for the working guide and quickstarts.
+### squint
+Seven skills for PR reviews where the requester stays reviewer of record — `squint-kickoff`, `squint-deeper`, `squint-walkthrough`, `squint-cloud`, `squint-panel`, `squint-onboard`, and `squint-onboard-cloud`. Scratch lives outside the repo by default; posting still requires explicit approval. See [`skills/squint/README.md`](skills/squint/README.md) for the working guide and quickstarts.
 
 ### cass
 Search all past AI coding agent histories (Claude Code, Cursor, Codex, OpenCode, etc.) using the [`cass`](https://github.com/Dicklesworthstone/coding_agent_session_search) CLI. Find how you solved something before, mine patterns, or look up historical context across all your conversations.
@@ -69,16 +69,13 @@ skills/
 ```yaml
 ---
 name: my-skill
-description: One sentence — when should an agent use this?
-triggers:
-  - keyword agents will think when they need this
-  - another trigger phrase
+description: This skill should be used when the user asks to do a specific task this skill handles.
 ---
 
 # Instructions for the agent...
 ```
 
-The `description` and `triggers` fields are what surface the skill to agents — make them reflect the *problem*, not the tool name.
+The `name` and `description` fields are the portable trigger metadata. Keep descriptions concise, concrete, and phrased around the user request that should load the skill.
 
 PRs welcome.
 

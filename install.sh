@@ -51,14 +51,31 @@ done
 header "Installing to shared hub (~/.agents/skills)"
 mkdir -p "$AGENTS_SKILLS"
 
+THIS_COLLECTION="$(basename "$INSTALL_DIR")"
+
+# Name the collection that actually owns a path under ~/.local/share/<collection>/...
+# so collision warnings attribute the real source instead of guessing.
+owner_of() {
+    local p="$1"
+    case "$p" in
+        "$HOME/.local/share/"*) printf '%s' "${p#"$HOME"/.local/share/}" | cut -d/ -f1 ;;
+        *) printf '%s' "$p" ;;
+    esac
+}
+
 for source in "${AVAILABLE_SKILL_DIRS[@]}"; do
     skill="$(basename "$source")"
     target="$AGENTS_SKILLS/$skill"
     if [[ -L "$target" ]]; then
-        ln -sfn "$source" "$target"
-        info "Updated symlink: ~/.agents/skills/$skill"
-    elif [[ -d "$target" ]]; then
-        warn "~/.agents/skills/$skill exists and is not a symlink — skipping (remove manually to replace)"
+        current="$(readlink "$target")"
+        if [[ "$current" == "$source" ]]; then
+            :  # already ours and correct — stay quiet
+        else
+            warn "collision: ~/.agents/skills/$skill is provided by '$(owner_of "$current")' — overriding with '$THIS_COLLECTION'"
+            ln -sfn "$source" "$target"
+        fi
+    elif [[ -e "$target" ]]; then
+        warn "~/.agents/skills/$skill is a real directory (not a symlink) — skipping; remove it to let $THIS_COLLECTION provide it"
     else
         ln -s "$source" "$target"
         success "~/.agents/skills/$skill"
