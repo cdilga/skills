@@ -1,6 +1,6 @@
 ---
 name: squint-simple-fresh-eyes
-description: This skill should be used to explore a codebase around a PR and do a careful fresh-eyes pass for bugs, tracing execution flows through the files a change imports or is imported by, then handing a short findings list to the human reviewer. Use it for a deeper second look after squint-simple-kickoff, when someone asks to dig into the code paths a PR touches, follow the data flow, or take another careful look with fresh eyes. Produces findings only; it never edits code.
+description: Explore the code around a PR and trace the execution flows it touches, then do a careful fresh-eyes bug pass and hand a short findings list to the human reviewer. Use for a deeper second look after squint-simple-kickoff, or to dig into the code paths and data flow a change touches. Findings only; never edits code.
 triggers:
   - squint-simple-fresh-eyes
   - fresh-eyes pass on this PR

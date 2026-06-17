@@ -69,7 +69,7 @@ skills/
 ```yaml
 ---
 name: my-skill
-description: This skill should be used when the user asks to do a specific task this skill handles.
+description: Does the specific task this skill handles. Use when the user asks for that task, mentions related key terms, or hits a matching context.
 ---
 
 # Instructions for the agent...

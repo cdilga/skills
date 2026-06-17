@@ -1,6 +1,6 @@
 ---
 name: squint-cloud
-description: This skill should be used when the user asks to request, inspect, or harvest GitHub Copilot code-review or cloud-agent findings for a squint PR review.
+description: Request GitHub Copilot code review on a PR and harvest its cloud-agent findings into the local squint scratch. Use when running a squint review through the cloud, or pulling Copilot/cloud-agent findings into an in-progress review.
 triggers:
   - squint-cloud
   - run the review in the cloud

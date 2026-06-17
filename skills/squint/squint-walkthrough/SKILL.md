@@ -1,6 +1,6 @@
 ---
 name: squint-walkthrough
-description: This skill should be used when the user asks to walk through, edit, draft, approve, or post accumulated squint findings as one GitHub PR review.
+description: Walk through accumulated squint findings one at a time (accept/edit/drop), render the full draft, and post one batched GitHub PR review only after explicit approval. Use to finalize and post a squint review.
 triggers:
   - squint-walkthrough
   - step through the findings

@@ -1,6 +1,6 @@
 ---
 name: squint-simple-peer-review
-description: This skill should be used for a deep, wide peer-review pass on a PR — review the code your fellow human colleagues wrote for bugs, inefficiencies, security, and reliability issues, diagnose root causes from first principles, and hand a short findings list to the human reviewer. Use it as the final, most thorough squint pass, when someone asks to go deep, cast a wider net beyond the latest commits, or scrutinize a colleague's change hard. Produces findings only; it never edits code.
+description: Run a deep, wide peer-review pass on a PR — scrutinize a colleague's change for bugs, inefficiencies, security, and reliability issues, diagnose root causes from first principles, and hand a short findings list to the human reviewer. Use as the final, most thorough simple-lane pass, casting a wider net beyond the latest commits. Findings only; never edits code.
 triggers:
   - squint-simple-peer-review
   - peer review this PR

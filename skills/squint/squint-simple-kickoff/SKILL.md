@@ -1,6 +1,6 @@
 ---
 name: squint-simple-kickoff
-description: This skill should be used to start a lean, human-oriented PR review — read the changed code with fresh eyes and build an understanding of the repo and the data flow the PR touches, then hand a short findings list to the human reviewer. Use it whenever someone asks to "squint" a PR simply, do a first pass on a pull request, get oriented before reviewing, or understand what a diff is doing — even if they don't say "review" outright. Produces findings only; it never edits code.
+description: Get oriented on a PR — read the changed code with fresh eyes and build an understanding of the repo and the data flow the diff touches, then hand a short findings list to the human reviewer. Use for a lean first pass on a pull request, or to understand what a diff is doing. Findings only; never edits code.
 triggers:
   - squint-simple-kickoff
   - simple squint of this PR

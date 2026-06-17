@@ -1,6 +1,6 @@
 ---
 name: squint-onboard
-description: This skill should be used when the user asks to onboard a repo for squint, improve AGENTS/review docs, or create project-specific squint review skills.
+description: Study a repo in depth and propose lightweight review artifacts — root AGENTS.md guardrails, review docs, and project-specific squint shims. Use when onboarding a repo for review or making it agent-ready before the first review.
 triggers:
   - squint-onboard
   - onboard this repo for review

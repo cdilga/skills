@@ -1,6 +1,6 @@
 ---
 name: squint-kickoff
-description: This skill should be used when the user provides a GitHub PR URL and asks to start a squint review, review a PR, or run a fast/standard/deep first pass.
+description: Start a squint PR review from a GitHub PR URL — boots repo context, picks a checkout strategy, runs a depth-gated first pass (fast/standard/deep), and writes findings to scratch. Use when handed a PR link to review.
 triggers:
   - squint-kickoff
   - squint this PR
