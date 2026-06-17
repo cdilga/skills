@@ -1,6 +1,6 @@
 ---
 name: squint-deeper
-description: This skill should be used when an in-progress squint PR review needs another pass, a specific review lens, head-move reconciliation, verification, or more findings.
+description: Run another pass on an in-progress squint PR review — rotates a fresh lens (including a verification lens), reconciles head moves, and surfaces only new findings. Use to keep digging for bugs, steer toward a specific area, or verify before posting.
 triggers:
   - squint-deeper
   - go deeper on the review

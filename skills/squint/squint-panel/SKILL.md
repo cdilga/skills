@@ -1,6 +1,6 @@
 ---
 name: squint-panel
-description: This skill should be used when the user explicitly asks for adversarial, multi-model, panel, second-opinion, or high-stakes review of an in-progress squint PR.
+description: Convene an adversarial multi-model panel (Gemini/OpenAI/Opus, overridable) on an in-progress squint review — each model a distinct lens, cross-examining each other's findings, survivors fold in. Use for high-stakes PRs that warrant a deep second and third opinion.
 triggers:
   - squint-panel
   - run an adversarial panel on this PR

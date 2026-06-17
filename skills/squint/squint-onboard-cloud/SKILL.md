@@ -1,6 +1,6 @@
 ---
 name: squint-onboard-cloud
-description: This skill should be used when the user asks to onboard a repo for GitHub Copilot code review, the GitHub Review button, or cloud-specific PR review guidance.
+description: Onboard a repo for GitHub-native cloud review — scaffolds .github/skills/code-review/SKILL.md and Review-button guidance, no local squint scratch. Use when setting up GitHub Copilot code review or cloud PR review for a repo.
 triggers:
   - squint-onboard-cloud
   - onboard-cloud
