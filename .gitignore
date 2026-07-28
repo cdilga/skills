@@ -16,6 +16,8 @@
 # Node (if ever added)
 node_modules/
 
+research/
+skills/*-workspace/
 # Python (if ever added)
 __pycache__/
 *.pyc
