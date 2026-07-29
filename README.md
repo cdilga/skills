@@ -45,6 +45,9 @@ Or add via **Settings → Plugins** and search for `cdilga/skills`.
 ### squint
 Seven skills for PR reviews where the requester stays reviewer of record — `squint-kickoff`, `squint-deeper`, `squint-walkthrough`, `squint-cloud`, `squint-panel`, `squint-onboard`, and `squint-onboard-cloud`. Scratch lives outside the repo by default; posting still requires explicit approval. See [`skills/squint/README.md`](skills/squint/README.md) for the working guide and quickstarts.
 
+### wiki
+Two skills for LLM-maintained knowledge bases (`*-wiki` projects) — `wiki-init` scaffolds a new wiki (interview-driven by default; a proven private-wiki default stack on explicit request), and `wiki-tend` runs periodic health checks: lint, index/log discipline, schema evolution, and growth upgrades.
+
 ### cass
 Search all past AI coding agent histories (Claude Code, Cursor, Codex, OpenCode, etc.) using the [`cass`](https://github.com/Dicklesworthstone/coding_agent_session_search) CLI. Find how you solved something before, mine patterns, or look up historical context across all your conversations.
 
